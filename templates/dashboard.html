@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard – Company Tools{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Tools Dashboard</h2>
+  <p>Select a tool to get started</p>
+</div>
+
+<div class="row g-4">
+  <div class="col-md-6 col-xl-3">
+    <a href="{{ url_for('email.index') }}" class="tool-card">
+      <div class="tool-icon" style="background:#fff3cd; color:#92690a;">
+        <i class="fas fa-envelope"></i>
+      </div>
+      <h5>Email Generator</h5>
+      <p>Upload the promotions Excel and paste the last email — the tool highlights what's new, ongoing, and generates a ready-to-send update.</p>
+    </a>
+  </div>
+
+  <div class="col-md-6 col-xl-3">
+    <a href="{{ url_for('bag.index') }}" class="tool-card">
+      <div class="tool-icon" style="background:#d1ecf1; color:#0c5460;">
+        <i class="fas fa-shopping-bag"></i>
+      </div>
+      <h5>Bag Dimensions</h5>
+      <p>Upload a Philipp Plein product file and extract, format, and export bag dimension data in one click.</p>
+    </a>
+  </div>
+
+  <div class="col-md-6 col-xl-3">
+    <a href="{{ url_for('splitter.index') }}" class="tool-card">
+      <div class="tool-icon" style="background:#d4edda; color:#155724;">
+        <i class="fas fa-scissors"></i>
+      </div>
+      <h5>File Splitter</h5>
+      <p>Upload any large file and split it into parts of max 15,000 lines. Download all parts as a ZIP archive.</p>
+    </a>
+  </div>
+
+  <div class="col-md-6 col-xl-3">
+    <a href="{{ url_for('best_secret.index') }}" class="tool-card">
+      <div class="tool-icon" style="background:#e2d9f3; color:#432874;">
+        <i class="fas fa-layer-group"></i>
+      </div>
+      <h5>Best Secret</h5>
+      <p>6 mapping tools: category, description, shop category, materials, size, and closure. Upload a file, apply the mapping, download the result.</p>
+    </a>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+{% block title %}Email Generator – Company Tools{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2><i class="fas fa-envelope me-2" style="color:var(--accent)"></i>Email Generator</h2>
+  <p>Upload the promotions Excel, paste the last email, and get a ready-to-send update.</p>
+</div>
+
+<!-- Step 1: Upload Excel -->
+<div class="card mb-4">
+  <div class="card-body">
+    <div class="section-label"><i class="fas fa-file-excel"></i> Step 1 — Upload Promotions Excel</div>
+    <div class="upload-zone" id="uploadZone">
+      <i class="fas fa-file-excel"></i>
+      <p class="mb-1"><strong>Click to browse</strong> or drag &amp; drop the Excel file</p>
+      <small>Download it from your colleague's SharePoint, then upload here (.xlsx)</small>
+      <input type="file" id="excelInput" class="d-none" accept=".xlsx,.xls">
+    </div>
+    <div id="fileInfo" class="mt-2 small text-muted d-none"></div>
+
+    <div id="previewSection" class="mt-4 d-none">
+      <p class="text-success small mb-2"><i class="fas fa-check-circle me-1"></i>File loaded — <span id="rowCount"></span> rows detected.</p>
+      <div class="table-responsive mb-3">
+        <table class="table table-sm table-bordered preview-table" id="previewTable"></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Step 2: Configure -->
+<div class="card mb-4" id="configCard" style="display:none!important">
+  <div class="card-body">
+    <div class="section-label"><i class="fas fa-sliders-h"></i> Step 2 — Configure Columns</div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Promotion name / key column <span class="text-danger">*</span></label>
+        <select id="keyColumn" class="form-select">
+          <option value="">— select —</option>
+        </select>
+        <small class="text-muted">Used to detect what's new vs. ongoing.</small>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Additional columns to show in email</label>
+        <div id="displayColumnsBox" class="border rounded p-2" style="max-height:120px;overflow-y:auto;background:#fafafa;font-size:.82rem;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Step 3: Last email + settings -->
+<div class="card mb-4" id="emailCard" style="display:none!important">
+  <div class="card-body">
+    <div class="section-label"><i class="fas fa-history"></i> Step 3 — Paste Last Email Sent</div>
+    <textarea id="lastEmail" class="form-control mb-3" rows="6"
+      placeholder="Paste the full text of the last promotions email you sent…"></textarea>
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Email intro sentence</label>
+        <input type="text" id="introText" class="form-control"
+          value="Please find below the latest promotions update.">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Your name (for signature)</label>
+        <input type="text" id="senderName" class="form-control" placeholder="e.g. Stefano">
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <button class="btn btn-gold" id="generateBtn">
+        <i class="fas fa-magic me-2"></i>Generate Email
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Result -->
+<div class="card d-none" id="resultCard">
+  <div class="card-body">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <div class="section-label mb-0"><i class="fas fa-envelope-open-text"></i> Generated Email</div>
+      <div id="statsRow" class="d-flex gap-2"></div>
+    </div>
+    <textarea class="result-box form-control mb-3" id="emailOutput" rows="18" readonly></textarea>
+    <button class="btn btn-gold" id="copyBtn">
+      <i class="fas fa-copy me-2"></i>Copy to Clipboard
+    </button>
+    <small class="text-muted ms-3">Then paste directly into Outlook.</small>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const zone       = document.getElementById('uploadZone');
+const excelInput = document.getElementById('excelInput');
+const fileInfo   = document.getElementById('fileInfo');
+const configCard = document.getElementById('configCard');
+const emailCard  = document.getElementById('emailCard');
+let excelFile = null;
+
+// ── Drag & drop ──────────────────────────────────────
+zone.addEventListener('click', () => excelInput.click());
+zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('dragover'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) loadExcel(e.dataTransfer.files[0]);
+});
+excelInput.addEventListener('change', () => { if (excelInput.files[0]) loadExcel(excelInput.files[0]); });
+
+// ── Load Excel: preview columns ──────────────────────
+async function loadExcel(file) {
+  excelFile = file;
+  fileInfo.textContent = `Selected: ${file.name}  (${(file.size/1024).toFixed(1)} KB)`;
+  fileInfo.classList.remove('d-none');
+
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res  = await fetch('/email/preview-columns', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+
+    // Preview table
+    const cols = data.columns;
+    const tbl  = document.getElementById('previewTable');
+    tbl.innerHTML = '';
+    const thead = tbl.createTHead().insertRow();
+    cols.forEach(c => { const th = document.createElement('th'); th.textContent = c; thead.appendChild(th); });
+    const tbody = tbl.createTBody();
+    data.preview.forEach(row => {
+      const tr = tbody.insertRow();
+      cols.forEach(c => { const td = tr.insertCell(); td.textContent = row[c] ?? ''; });
+    });
+    document.getElementById('rowCount').textContent = data.preview.length + '+';
+    document.getElementById('previewSection').classList.remove('d-none');
+
+    // Key column select
+    const keySelect = document.getElementById('keyColumn');
+    keySelect.innerHTML = '<option value="">— select —</option>';
+    cols.forEach(c => {
+      const opt = new Option(c, c);
+      keySelect.appendChild(opt);
+    });
+
+    // Display columns checkboxes
+    const box = document.getElementById('displayColumnsBox');
+    box.innerHTML = '';
+    cols.forEach(c => {
+      const label = document.createElement('label');
+      label.className = 'd-block';
+      label.innerHTML = `<input type="checkbox" class="form-check-input me-1 display-col" value="${c}"> ${c}`;
+      box.appendChild(label);
+    });
+
+    configCard.style.removeProperty('display');
+    emailCard.style.removeProperty('display');
+  } catch(err) {
+    alert('Could not read file: ' + err.message);
+  }
+}
+
+// ── Generate ─────────────────────────────────────────
+document.getElementById('generateBtn').addEventListener('click', async () => {
+  if (!excelFile) { alert('Please upload an Excel file first.'); return; }
+  const keyCol = document.getElementById('keyColumn').value;
+  if (!keyCol)  { alert('Please select the promotion name column.'); return; }
+
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner me-2"></span>Generating…';
+
+  const fd = new FormData();
+  fd.append('file', excelFile);
+  fd.append('key_column', keyCol);
+  document.querySelectorAll('.display-col:checked').forEach(cb => fd.append('display_columns', cb.value));
+  fd.append('last_email',  document.getElementById('lastEmail').value);
+  fd.append('intro_text',  document.getElementById('introText').value);
+  fd.append('sender_name', document.getElementById('senderName').value);
+
+  try {
+    const res  = await fetch('/email/generate', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+
+    document.getElementById('emailOutput').value = data.email;
+
+    const s = data.stats;
+    document.getElementById('statsRow').innerHTML = `
+      <span class="stat-pill stat-new"><i class="fas fa-plus-circle me-1"></i>${s.new} new</span>
+      <span class="stat-pill stat-ongoing"><i class="fas fa-sync-alt me-1"></i>${s.ongoing} ongoing</span>
+      <span class="stat-pill stat-total"><i class="fas fa-list me-1"></i>${s.total} total</span>`;
+
+    document.getElementById('resultCard').classList.remove('d-none');
+    document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth' });
+  } catch(err) {
+    alert('Error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-magic me-2"></i>Generate Email';
+  }
+});
+
+// ── Copy ─────────────────────────────────────────────
+document.getElementById('copyBtn').addEventListener('click', () => {
+  const txt = document.getElementById('emailOutput');
+  txt.select();
+  document.execCommand('copy');
+  const btn = document.getElementById('copyBtn');
+  btn.innerHTML = '<i class="fas fa-check me-2"></i>Copied!';
+  setTimeout(() => { btn.innerHTML = '<i class="fas fa-copy me-2"></i>Copy to Clipboard'; }, 2000);
+});
+</script>
+{% endblock %}

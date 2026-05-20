@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% block title %}File Splitter – Company Tools{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2><i class="fas fa-scissors me-2" style="color:var(--accent)"></i>File Splitter</h2>
+  <p>Upload any text or CSV file — it will be split into parts of max 15,000 lines and downloaded as a single ZIP.</p>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <div class="section-label"><i class="fas fa-file-upload"></i> Upload File</div>
+    <div class="upload-zone" id="uploadZone">
+      <i class="fas fa-file-alt"></i>
+      <p class="mb-1"><strong>Click to browse</strong> or drag &amp; drop</p>
+      <small>Supports .csv, .txt, .tsv and other text formats</small>
+      <input type="file" id="fileInput" class="d-none">
+    </div>
+    <div id="fileInfo" class="mt-2 text-muted small d-none"></div>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label">Max lines per part</label>
+        <input type="number" id="maxLines" value="15000" min="100" max="500000" class="form-control">
+      </div>
+      <div class="col-md-8 d-flex align-items-end">
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="keepHeader" checked>
+          <label class="form-check-label" for="keepHeader">Copy header row to every part</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <button class="btn btn-gold" id="splitBtn" disabled>
+        <i class="fas fa-scissors me-2"></i>Split &amp; Download
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="resultCard" class="card d-none">
+  <div class="card-body" id="resultBody"></div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const zone    = document.getElementById('uploadZone');
+const input   = document.getElementById('fileInput');
+const fileInfo= document.getElementById('fileInfo');
+const splitBtn= document.getElementById('splitBtn');
+let selectedFile = null;
+
+zone.addEventListener('click', () => input.click());
+zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('dragover'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+});
+input.addEventListener('change', () => { if (input.files[0]) setFile(input.files[0]); });
+
+function setFile(f) {
+  selectedFile = f;
+  fileInfo.textContent = `Selected: ${f.name}  (${(f.size/1024).toFixed(1)} KB)`;
+  fileInfo.classList.remove('d-none');
+  splitBtn.disabled = false;
+}
+
+splitBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+
+  splitBtn.disabled = true;
+  splitBtn.innerHTML = '<span class="spinner me-2"></span>Processing…';
+
+  const fd = new FormData();
+  fd.append('file', selectedFile);
+  fd.append('max_lines', document.getElementById('maxLines').value);
+  fd.append('keep_header', document.getElementById('keepHeader').checked ? 'on' : '');
+
+  try {
+    const res = await fetch('/file-splitter/split', { method: 'POST', body: fd });
+
+    if (res.ok) {
+      const parts = res.headers.get('X-Parts-Count') || '?';
+      const blob  = await res.blob();
+      const url   = URL.createObjectURL(blob);
+      const a     = document.createElement('a');
+      a.href = url;
+      a.download = selectedFile.name.replace(/\.[^.]+$/, '') + '_split.zip';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showResult('success',
+        `<i class="fas fa-check-circle me-2"></i>Split into <strong>${parts} parts</strong>. Download started.`);
+    } else {
+      const data = await res.json().catch(() => ({ error: 'Unknown error' }));
+      showResult('danger', `<i class="fas fa-exclamation-circle me-2"></i>${data.error}`);
+    }
+  } catch(err) {
+    showResult('danger', `<i class="fas fa-exclamation-circle me-2"></i>${err.message}`);
+  } finally {
+    splitBtn.disabled = false;
+    splitBtn.innerHTML = '<i class="fas fa-scissors me-2"></i>Split &amp; Download';
+  }
+});
+
+function showResult(type, html) {
+  const card = document.getElementById('resultCard');
+  document.getElementById('resultBody').innerHTML =
+    `<div class="alert alert-${type} mb-0">${html}</div>`;
+  card.classList.remove('d-none');
+}
+</script>
+{% endblock %}

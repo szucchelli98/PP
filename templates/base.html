@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Company Tools{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+<div class="app-wrapper">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <i class="fas fa-briefcase"></i>
+      <span>Company Tools</span>
+    </div>
+    <ul class="sidebar-nav">
+      <li>
+        <a href="{{ url_for('dashboard') }}"
+           class="{{ 'active' if request.endpoint == 'dashboard' else '' }}">
+          <i class="fas fa-th-large"></i> Dashboard
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('email.index') }}"
+           class="{{ 'active' if request.blueprint == 'email' else '' }}">
+          <i class="fas fa-envelope"></i> Email Generator
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('bag.index') }}"
+           class="{{ 'active' if request.blueprint == 'bag' else '' }}">
+          <i class="fas fa-shopping-bag"></i> Bag Dimensions
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('splitter.index') }}"
+           class="{{ 'active' if request.blueprint == 'splitter' else '' }}">
+          <i class="fas fa-scissors"></i> File Splitter
+        </a>
+      </li>
+      <li class="nav-group {{ 'open' if request.blueprint == 'best_secret' else '' }}">
+        <a href="#" class="nav-group-toggle">
+          <i class="fas fa-layer-group"></i> Best Secret
+          <i class="fas fa-chevron-down nav-arrow"></i>
+        </a>
+        <ul class="nav-sub">
+          {% set tool_names = ['category','description','shop_category','materials','size','closure'] %}
+          {% set tool_labels = {
+            'category': 'Category',
+            'description': 'Description',
+            'shop_category': 'Shop Category',
+            'materials': 'Materials',
+            'size': 'Size',
+            'closure': 'Closure'
+          } %}
+          {% set tool_icons = {
+            'category': 'fas fa-tags',
+            'description': 'fas fa-align-left',
+            'shop_category': 'fas fa-store',
+            'materials': 'fas fa-layer-group',
+            'size': 'fas fa-ruler',
+            'closure': 'fas fa-lock'
+          } %}
+          {% for tn in tool_names %}
+          <li>
+            <a href="{{ url_for('best_secret.mapping_tool', tool_name=tn) }}"
+               class="{{ 'active' if request.view_args.get('tool_name') == tn else '' }}">
+              <i class="{{ tool_icons[tn] }}"></i> {{ tool_labels[tn] }}
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+      </li>
+    </ul>
+  </nav>
+
+  <!-- Main content -->
+  <main class="main-content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-messages">
+          {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else ('success' if category == 'success' else 'info') }} alert-dismissible fade show">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.querySelectorAll('.nav-group-toggle').forEach(t => {
+  t.addEventListener('click', e => {
+    e.preventDefault();
+    t.closest('.nav-group').classList.toggle('open');
+  });
+});
+</script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>
