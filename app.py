@@ -1,4 +1,6 @@
 import os
+import json
+from pathlib import Path
 from flask import Flask, render_template
 
 
@@ -19,7 +21,14 @@ def create_app():
 
     @app.route("/")
     def dashboard():
-        return render_template("dashboard.html")
+        status = None
+        status_file = Path(__file__).parent.parent / "scripts" / "materials_monitor" / "data" / "status.json"
+        if status_file.exists():
+            try:
+                status = json.loads(status_file.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+        return render_template("dashboard.html", automation_status=status)
 
     return app
 
