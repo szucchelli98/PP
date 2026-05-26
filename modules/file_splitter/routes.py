@@ -15,6 +15,11 @@ def index():
     return render_template("file_splitter/index.html")
 
 
+@splitter_bp.route("/ping")
+def ping():
+    return Response('{"status":"ok","version":"v5"}', status=200, mimetype="application/json")
+
+
 @splitter_bp.route("/split", methods=["POST"])
 def split():
     try:
@@ -54,14 +59,13 @@ def split():
             headers={
                 "Content-Disposition": f'attachment; filename="{base}_split.zip"',
                 "X-Parts-Count": str(len(chunks)),
-                "Content-Length": str(len(zip_bytes)),
             },
         )
 
-    except Exception as exc:
-        return _json_error(str(exc), 500)
+    except BaseException as exc:
+        return _json_error(f"{type(exc).__name__}: {exc}", 500)
 
 
 def _json_error(msg: str, status: int) -> Response:
-    safe = msg.replace("\\", "/").replace('"', "'").replace("\n", " ").replace("\r", "")
+    safe = str(msg).replace("\\", "/").replace('"', "'").replace("\n", " ").replace("\r", "")[:400]
     return Response(f'{{"error":"{safe}"}}', status=status, mimetype="application/json")
