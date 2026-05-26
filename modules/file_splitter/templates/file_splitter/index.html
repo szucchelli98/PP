@@ -1,6 +1,11 @@
 {% extends 'base.html' %}
 {% block title %}Material Excel Splitter – Marketplace Tool{% endblock %}
 
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
   <h2><i class="fas fa-scissors me-2" style="color:var(--accent)"></i>Material Excel Splitter</h2>
@@ -32,10 +37,11 @@
 
 {% block extra_scripts %}
 <script>
-const zone     = document.getElementById('uploadZone');
-const input    = document.getElementById('fileInput');
-const fileInfo = document.getElementById('fileInfo');
-const splitBtn = document.getElementById('splitBtn');
+const MAX_ROWS   = 15000;
+const zone       = document.getElementById('uploadZone');
+const input      = document.getElementById('fileInput');
+const fileInfo   = document.getElementById('fileInfo');
+const splitBtn   = document.getElementById('splitBtn');
 let selectedFile = null;
 
 zone.addEventListener('click', () => input.click());
@@ -56,34 +62,52 @@ function setFile(f) {
 
 splitBtn.addEventListener('click', async () => {
   if (!selectedFile) return;
-
   splitBtn.disabled = true;
   splitBtn.innerHTML = '<span class="spinner me-2"></span>Processing…';
 
-  const fd = new FormData();
-  fd.append('file', selectedFile);
-
   try {
-    const res = await fetch('/file-splitter/split', { method: 'POST', body: fd });
+    // 1 — read file
+    const buffer   = await selectedFile.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: 'array' });
+    const sheet    = workbook.Sheets[workbook.SheetNames[0]];
+    const rows     = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
-    if (res.ok) {
-      const parts = res.headers.get('X-Parts-Count') || '?';
-      const blob  = await res.blob();
-      const url   = URL.createObjectURL(blob);
-      const a     = document.createElement('a');
-      a.href = url;
-      a.download = selectedFile.name.replace(/\.[^.]+$/, '') + '_split.zip';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+    if (!rows.length) throw new Error('File is empty');
 
-      showResult('success',
-        `<i class="fas fa-check-circle me-2"></i>Done — split into <strong>${parts} part${parts == 1 ? '' : 's'}</strong>. Download started.`);
-    } else {
-      const text = await res.text();
-      let msg;
-      try { msg = JSON.parse(text).error; } catch { msg = `[${res.status}] ${text.substring(0, 400)}`; }
-      showResult('danger', `<i class="fas fa-exclamation-circle me-2"></i>${msg}`);
+    const header = rows[0];
+    const data   = rows.slice(1);
+
+    // 2 — split into chunks
+    const chunks = [];
+    for (let i = 0; i < Math.max(data.length, 1); i += MAX_ROWS) {
+      chunks.push(data.slice(i, i + MAX_ROWS));
     }
+
+    // 3 — build xlsx for each chunk and add to ZIP
+    const zip      = new JSZip();
+    const baseName = selectedFile.name.replace(/\.[^.]+$/, '');
+
+    for (let i = 0; i < chunks.length; i++) {
+      const ws = XLSX.utils.aoa_to_sheet([header, ...chunks[i]]);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+      const xlsxBytes = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+      const num = String(i + 1).padStart(2, '0');
+      zip.file(`${baseName}_part${num}.xlsx`, xlsxBytes);
+    }
+
+    // 4 — generate ZIP and trigger download
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(zipBlob);
+    const a   = document.createElement('a');
+    a.href     = url;
+    a.download = `${baseName}_split.zip`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showResult('success',
+      `<i class="fas fa-check-circle me-2"></i>Done — split into <strong>${chunks.length} part${chunks.length === 1 ? '' : 's'}</strong>. Download started.`);
+
   } catch (err) {
     showResult('danger', `<i class="fas fa-exclamation-circle me-2"></i>${err.message}`);
   } finally {
