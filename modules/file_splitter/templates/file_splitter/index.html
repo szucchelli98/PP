@@ -79,8 +79,10 @@ splitBtn.addEventListener('click', async () => {
       showResult('success',
         `<i class="fas fa-check-circle me-2"></i>Done — split into <strong>${parts} part${parts == 1 ? '' : 's'}</strong>. Download started.`);
     } else {
-      const data = await res.json().catch(() => ({ error: 'Unknown error' }));
-      showResult('danger', `<i class="fas fa-exclamation-circle me-2"></i>${data.error}`);
+      const text = await res.text();
+      let msg;
+      try { msg = JSON.parse(text).error; } catch { msg = `[${res.status}] ${text.substring(0, 400)}`; }
+      showResult('danger', `<i class="fas fa-exclamation-circle me-2"></i>${msg}`);
     }
   } catch (err) {
     showResult('danger', `<i class="fas fa-exclamation-circle me-2"></i>${err.message}`);
