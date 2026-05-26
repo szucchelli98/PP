@@ -1,7 +1,7 @@
 import os
 import json
 from pathlib import Path
-from flask import Flask, render_template
+from flask import Flask, Response, render_template
 
 
 def create_app():
@@ -18,6 +18,11 @@ def create_app():
     app.register_blueprint(bag_bp, url_prefix="/bag-dimensions")
     app.register_blueprint(splitter_bp, url_prefix="/file-splitter")
     app.register_blueprint(best_secret_bp, url_prefix="/best-secret")
+
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        safe = str(e).replace('"', "'").replace("\n", " ")[:300]
+        return Response(f'{{"error":"{safe}"}}', status=500, mimetype="application/json")
 
     @app.route("/")
     def dashboard():

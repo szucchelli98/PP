@@ -2,7 +2,7 @@ import io
 import os
 import zipfile
 
-import openpyxl
+import pandas as pd
 from flask import Blueprint, Response, render_template, request
 
 splitter_bp = Blueprint("splitter", __name__, template_folder="templates")
@@ -23,35 +23,27 @@ def split():
             return _json_error("No file uploaded", 400)
 
         ext = os.path.splitext(file.filename)[1].lower()
-        if ext not in (".xlsx", ".xls"):
+        if ext == ".xls":
+            engine = "xlrd"
+        elif ext == ".xlsx":
+            engine = "openpyxl"
+        else:
             return _json_error("Only .xlsx / .xls files are supported", 400)
 
-        # ── Read source workbook ──────────────────────────────────────────
         file_bytes = file.read()
-        wb_src = openpyxl.load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
-        ws_src = wb_src.active
-        all_rows = [list(row) for row in ws_src.iter_rows(values_only=True)]
-        wb_src.close()
+        df = pd.read_excel(io.BytesIO(file_bytes), engine=engine, header=0)
 
-        if not all_rows:
-            return _json_error("File is empty", 400)
+        if df.empty:
+            return _json_error("File is empty or has no data rows", 400)
 
-        header = all_rows[0]
-        data   = all_rows[1:]
-        chunks = [data[i: i + MAX_ROWS] for i in range(0, max(len(data), 1), MAX_ROWS)]
+        chunks = [df.iloc[i: i + MAX_ROWS] for i in range(0, max(len(df), 1), MAX_ROWS)]
         base   = os.path.splitext(file.filename)[0]
 
-        # ── Build ZIP with one .xlsx per chunk ───────────────────────────
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
             for i, chunk in enumerate(chunks, 1):
-                wb_out = openpyxl.Workbook()
-                ws_out = wb_out.active
-                ws_out.append(header)
-                for row in chunk:
-                    ws_out.append(row)
                 part_buf = io.BytesIO()
-                wb_out.save(part_buf)
+                chunk.to_excel(part_buf, index=False, engine="openpyxl")
                 zf.writestr(f"{base}_part{i:02d}.xlsx", part_buf.getvalue())
 
         zip_bytes = buf.getvalue()
@@ -67,9 +59,9 @@ def split():
         )
 
     except Exception as exc:
-        return _json_error(f"Unexpected error: {exc}", 500)
+        return _json_error(str(exc), 500)
 
 
 def _json_error(msg: str, status: int) -> Response:
-    safe = msg.replace('"', "'")
+    safe = msg.replace("\\", "/").replace('"', "'").replace("\n", " ").replace("\r", "")
     return Response(f'{{"error":"{safe}"}}', status=status, mimetype="application/json")
