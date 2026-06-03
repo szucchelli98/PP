@@ -1,6 +1,5 @@
 from io import BytesIO
 
-import pandas as pd
 from flask import Blueprint, Response, jsonify, render_template, request
 
 promo_bp = Blueprint("promo_selection", __name__, template_folder="templates")
@@ -89,97 +88,102 @@ def export():
     if not file:
         return jsonify({"error": "No file provided"}), 400
 
-    # ── Read params ───────────────────────────────────────────────────────────
     channel          = request.form.get("channel", "").strip()
-    adjustment_type  = request.form.get("adjustment_type", "extra_discount")   # "extra_discount" | "new_discount"
-    adjustment_value = _float(request.form.get("adjustment_value"))             # %
-
+    adjustment_type  = request.form.get("adjustment_type", "none")
+    adjustment_value = _float(request.form.get("adjustment_value"))
     min_final_price  = _float(request.form.get("min_final_price"))
     max_final_price  = _float(request.form.get("max_final_price"))
-
     min_channel_disc = _float(request.form.get("min_channel_discount"))
     max_channel_disc = _float(request.form.get("max_channel_discount"))
-
-    stock_col        = request.form.get("stock_column", "").strip()             # e.g. "EU STOCK"
+    stock_col        = request.form.get("stock_column", "").strip()
     exclude_zero_stock = request.form.get("exclude_zero_stock") == "true"
-
-    include_cats     = _list(request.form.get("include_categories"))
-    exclude_cats     = _list(request.form.get("exclude_categories"))
-    include_micros   = _list(request.form.get("include_microcategories"))
-    exclude_micros   = _list(request.form.get("exclude_microcategories"))
+    include_cats     = set(_list(request.form.get("include_categories")))
+    exclude_cats     = set(_list(request.form.get("exclude_categories")))
+    include_micros   = set(_list(request.form.get("include_microcategories")))
+    exclude_micros   = set(_list(request.form.get("exclude_microcategories")))
 
     try:
-        df = pd.read_excel(BytesIO(file.read()))
+        import openpyxl
+        from openpyxl import Workbook
 
-        # ── Find discount column ──────────────────────────────────────────────
-        disc_col = f"{channel}{DISCOUNT_SUFFIX}"
-        if disc_col not in df.columns:
-            return jsonify({"error": f"Discount column '{disc_col}' not found in file."}), 400
+        disc_col_name = f"{channel}{DISCOUNT_SUFFIX}"
 
-        df[disc_col] = pd.to_numeric(df[disc_col], errors="coerce").fillna(0)
-        df["PRICE"]  = pd.to_numeric(df["PRICE"],  errors="coerce").fillna(0)
+        # ── Stream input ──────────────────────────────────────────────────────
+        wb_in = openpyxl.load_workbook(BytesIO(file.read()), read_only=True, data_only=True)
+        ws_in = wb_in.active
+        rows_iter = ws_in.rows
 
-        # ── Compute final price ───────────────────────────────────────────────
-        channel_disc_pct = df[disc_col] / 100.0
+        headers = [cell.value for cell in next(rows_iter)]
 
-        if adjustment_type == "new_discount" and adjustment_value is not None:
-            # Override channel discount entirely with the new value
-            effective_disc_pct = adjustment_value / 100.0
-        else:
-            effective_disc_pct = channel_disc_pct  # base
+        if disc_col_name not in headers:
+            wb_in.close()
+            return jsonify({"error": f"Discount column '{disc_col_name}' not found."}), 400
 
-        if adjustment_type == "extra_discount" and adjustment_value is not None:
-            # Apply extra % on top of already-discounted price
-            df["FINAL PRICE"] = df["PRICE"] * (1 - effective_disc_pct) * (1 - adjustment_value / 100.0)
-        else:
-            df["FINAL PRICE"] = df["PRICE"] * (1 - effective_disc_pct)
+        # Column indices
+        idx = {h: i for i, h in enumerate(headers) if h is not None}
+        disc_idx  = idx.get(disc_col_name)
+        price_idx = idx.get("PRICE")
+        cat_idx   = idx.get("CATEGORY")
+        micro_idx = idx.get("MICROCATEGORY")
+        stock_idx = idx.get(stock_col) if stock_col else None
 
-        df["FINAL PRICE"] = df["FINAL PRICE"].round(2)
+        # Output headers: insert FINAL PRICE after PRICE
+        out_headers = list(headers)
+        final_price_pos = (price_idx + 1) if price_idx is not None else len(out_headers)
+        out_headers.insert(final_price_pos, "FINAL PRICE")
 
-        # ── Filters ───────────────────────────────────────────────────────────
+        # ── Build output workbook ─────────────────────────────────────────────
+        wb_out = Workbook(write_only=True)
+        ws_out = wb_out.create_sheet()
+        ws_out.append(out_headers)
 
-        # Final price range
-        if min_final_price is not None:
-            df = df[df["FINAL PRICE"] >= min_final_price]
-        if max_final_price is not None:
-            df = df[df["FINAL PRICE"] <= max_final_price]
+        row_count = 0
 
-        # Channel discount range
-        if min_channel_disc is not None:
-            df = df[df[disc_col] >= min_channel_disc]
-        if max_channel_disc is not None:
-            df = df[df[disc_col] <= max_channel_disc]
+        for row in rows_iter:
+            vals = [cell.value for cell in row]
+            # Pad short rows
+            while len(vals) < len(headers):
+                vals.append(None)
 
-        # Stock filter
-        if exclude_zero_stock and stock_col and stock_col in df.columns:
-            df[stock_col] = pd.to_numeric(df[stock_col], errors="coerce").fillna(0)
-            df = df[df[stock_col] > 0]
+            # ── Compute final price ───────────────────────────────────────────
+            price = _to_float(vals[price_idx]) if price_idx is not None else 0.0
+            disc  = _to_float(vals[disc_idx])  if disc_idx  is not None else 0.0
 
-        # Category filters
-        if "CATEGORY" in df.columns:
-            if include_cats:
-                df = df[df["CATEGORY"].isin(include_cats)]
-            if exclude_cats:
-                df = df[~df["CATEGORY"].isin(exclude_cats)]
+            if adjustment_type == "new_discount" and adjustment_value is not None:
+                final = price * (1 - adjustment_value / 100.0)
+            elif adjustment_type == "extra_discount" and adjustment_value is not None:
+                final = price * (1 - disc / 100.0) * (1 - adjustment_value / 100.0)
+            else:
+                final = price * (1 - disc / 100.0)
+            final = round(final, 2)
 
-        # Microcategory filters
-        if "MICROCATEGORY" in df.columns:
-            if include_micros:
-                df = df[df["MICROCATEGORY"].isin(include_micros)]
-            if exclude_micros:
-                df = df[~df["MICROCATEGORY"].isin(exclude_micros)]
+            # ── Apply filters ─────────────────────────────────────────────────
+            if min_final_price  is not None and final < min_final_price:  continue
+            if max_final_price  is not None and final > max_final_price:  continue
+            if min_channel_disc is not None and disc  < min_channel_disc: continue
+            if max_channel_disc is not None and disc  > max_channel_disc: continue
 
-        # ── Build output ──────────────────────────────────────────────────────
-        # Move FINAL PRICE right after PRICE for readability
-        cols = list(df.columns)
-        if "PRICE" in cols and "FINAL PRICE" in cols:
-            cols.remove("FINAL PRICE")
-            price_idx = cols.index("PRICE")
-            cols.insert(price_idx + 1, "FINAL PRICE")
-            df = df[cols]
+            if exclude_zero_stock and stock_idx is not None:
+                if _to_float(vals[stock_idx]) <= 0: continue
+
+            cat = str(vals[cat_idx]) if cat_idx is not None and vals[cat_idx] else ""
+            if include_cats  and cat not in include_cats:  continue
+            if exclude_cats  and cat in exclude_cats:      continue
+
+            micro = str(vals[micro_idx]) if micro_idx is not None and vals[micro_idx] else ""
+            if include_micros and micro not in include_micros: continue
+            if exclude_micros and micro in exclude_micros:     continue
+
+            # ── Write row ─────────────────────────────────────────────────────
+            out_row = list(vals)
+            out_row.insert(final_price_pos, final)
+            ws_out.append(out_row)
+            row_count += 1
+
+        wb_in.close()
 
         buf = BytesIO()
-        df.to_excel(buf, index=False)
+        wb_out.save(buf)
         xlsx_bytes = buf.getvalue()
 
         base = file.filename.rsplit(".", 1)[0]
@@ -190,7 +194,7 @@ def export():
             headers={
                 "Content-Disposition": f'attachment; filename="{base}_promo_selection.xlsx"',
                 "Content-Length": str(len(xlsx_bytes)),
-                "X-Row-Count": str(len(df)),
+                "X-Row-Count": str(row_count),
             },
         )
     except Exception as exc:
@@ -198,6 +202,14 @@ def export():
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _to_float(val) -> float:
+    """Convert a cell value to float, defaulting to 0."""
+    try:
+        return float(val) if val is not None else 0.0
+    except (TypeError, ValueError):
+        return 0.0
+
 
 def _float(val) -> float | None:
     try:
