@@ -94,7 +94,17 @@
                 <i class="fas fa-ban me-1"></i>Exclude Licences
               </label>
             </div>
-            <div class="form-text ms-4" style="margin-top:-2px;">
+            <div class="ms-4 mt-1" id="licenceBadges" style="display:none;">
+              <span class="badge bg-danger me-1 mb-1">Underwear</span>
+              <span class="badge bg-danger me-1 mb-1">Perfumes &amp; Cosmetics</span>
+              <span class="badge bg-danger me-1 mb-1">Soft Accessories</span>
+              <span class="badge bg-danger me-1 mb-1">Leather Accessories</span>
+              <span class="badge bg-danger me-1 mb-1">Beachwear</span>
+              <span class="badge bg-danger me-1 mb-1">Eyewear</span>
+              <span class="badge bg-danger me-1 mb-1">Fashion Jewelery</span>
+              <span class="badge bg-danger me-1 mb-1">Watches</span>
+            </div>
+            <div class="form-text ms-4" id="licencesHint" style="margin-top:2px;">
               Underwear · Perfumes &amp; Cosmetics · Soft Accessories · Leather Accessories · Beachwear · Eyewear · Fashion Jewelery · Watches
             </div>
           </div>
@@ -173,6 +183,8 @@ excludeLicences.addEventListener('change', () => {
       opt.selected = excludeLicences.checked;
     }
   }
+  document.getElementById('licenceBadges').style.display = excludeLicences.checked ? '' : 'none';
+  document.getElementById('licencesHint').style.display  = excludeLicences.checked ? 'none' : '';
 });
 
 // ── Auto-parse on file select ─────────────────────────────────────────────────
@@ -229,6 +241,8 @@ fileInput.addEventListener('change', async () => {
         !data.categories.includes(lc) || selectedVals.includes(lc)
       );
       excludeLicences.checked = allLicencesSelected;
+      document.getElementById('licenceBadges').style.display = allLicencesSelected ? '' : 'none';
+      document.getElementById('licencesHint').style.display  = allLicencesSelected ? 'none' : '';
     });
 
     // Populate microcategory selects
