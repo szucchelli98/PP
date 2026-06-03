@@ -46,32 +46,54 @@ def index():
 
 @promo_bp.route("/parse", methods=["POST"])
 def parse():
-    """Read the uploaded file and return channels, categories, microcategories, stock columns."""
+    """Read the uploaded file and return channels, categories, microcategories, stock columns.
+    Uses openpyxl read-only streaming to avoid loading the full file into memory."""
     file = request.files.get("file")
     if not file:
         return jsonify({"error": "No file provided"}), 400
     try:
-        file_bytes = file.read()
+        import openpyxl
 
-        # Read only the header row to detect discount/stock columns — very fast
-        df_header = pd.read_excel(BytesIO(file_bytes), nrows=0)
-        channels  = [_channel_name(c) for c in _discount_columns(df_header)]
-        stock_cols = _available_stock_cols(df_header)
+        wb = openpyxl.load_workbook(BytesIO(file.read()), read_only=True, data_only=True)
+        ws = wb.active
 
-        # Read only the two columns we need for the dropdowns
-        cols_to_read = [c for c in ["CATEGORY", "MICROCATEGORY"] if c in df_header.columns]
-        if cols_to_read:
-            df_cats = pd.read_excel(BytesIO(file_bytes), usecols=cols_to_read)
-            categories      = sorted(df_cats["CATEGORY"].dropna().unique().tolist())      if "CATEGORY"      in df_cats.columns else []
-            microcategories = sorted(df_cats["MICROCATEGORY"].dropna().unique().tolist()) if "MICROCATEGORY" in df_cats.columns else []
-        else:
-            categories, microcategories = [], []
+        # First row = headers
+        headers = []
+        cat_idx = micro_idx = None
+        rows_iter = ws.rows
+
+        for cell in next(rows_iter):
+            headers.append(cell.value)
+
+        for i, h in enumerate(headers):
+            if h == "CATEGORY":
+                cat_idx = i
+            elif h == "MICROCATEGORY":
+                micro_idx = i
+
+        # Detect channels and stock columns from headers alone
+        header_series = pd.Series(headers)
+        dummy_df = pd.DataFrame(columns=headers)
+        channels   = [_channel_name(c) for c in _discount_columns(dummy_df)]
+        stock_cols = _available_stock_cols(dummy_df)
+
+        # Stream rows to collect unique categories/microcategories
+        categories_set      = set()
+        microcategories_set = set()
+
+        for row in rows_iter:
+            if cat_idx is not None and cat_idx < len(row) and row[cat_idx].value:
+                categories_set.add(str(row[cat_idx].value))
+            if micro_idx is not None and micro_idx < len(row) and row[micro_idx].value:
+                microcategories_set.add(str(row[micro_idx].value))
+
+        wb.close()
 
         return jsonify({
-            "channels": channels,
-            "categories": categories,
-            "microcategories": microcategories,
-            "stock_columns": stock_cols,
+            "channels":        channels,
+            "categories":      sorted(categories_set),
+            "microcategories": sorted(microcategories_set),
+            "stock_columns":   stock_cols,
         })
     except Exception as exc:
         return jsonify({"error": str(exc)}), 400
