@@ -51,12 +51,21 @@ def parse():
     if not file:
         return jsonify({"error": "No file provided"}), 400
     try:
-        df = pd.read_excel(BytesIO(file.read()))
+        file_bytes = file.read()
 
-        channels = [_channel_name(c) for c in _discount_columns(df)]
-        categories = sorted(df["CATEGORY"].dropna().unique().tolist()) if "CATEGORY" in df.columns else []
-        microcategories = sorted(df["MICROCATEGORY"].dropna().unique().tolist()) if "MICROCATEGORY" in df.columns else []
-        stock_cols = _available_stock_cols(df)
+        # Read only the header row to detect discount/stock columns — very fast
+        df_header = pd.read_excel(BytesIO(file_bytes), nrows=0)
+        channels  = [_channel_name(c) for c in _discount_columns(df_header)]
+        stock_cols = _available_stock_cols(df_header)
+
+        # Read only the two columns we need for the dropdowns
+        cols_to_read = [c for c in ["CATEGORY", "MICROCATEGORY"] if c in df_header.columns]
+        if cols_to_read:
+            df_cats = pd.read_excel(BytesIO(file_bytes), usecols=cols_to_read)
+            categories      = sorted(df_cats["CATEGORY"].dropna().unique().tolist())      if "CATEGORY"      in df_cats.columns else []
+            microcategories = sorted(df_cats["MICROCATEGORY"].dropna().unique().tolist()) if "MICROCATEGORY" in df_cats.columns else []
+        else:
+            categories, microcategories = [], []
 
         return jsonify({
             "channels": channels,
