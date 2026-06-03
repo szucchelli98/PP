@@ -2,8 +2,9 @@
 {% block title %}Promo Selection – Marketplace Tool{% endblock %}
 
 {% block extra_head %}
+<!-- SheetJS: read + write xlsx entirely in the browser -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
-  /* ── Drop zone ─────────────────────────────────────────────────────────── */
   .drop-zone {
     border: 2.5px dashed #ced4da;
     border-radius: 16px;
@@ -13,15 +14,11 @@
     transition: all .2s;
     background: #fff;
   }
-  .drop-zone:hover, .drop-zone.drag-over {
-    border-color: #0d6efd;
-    background: #f0f5ff;
-  }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: #0d6efd; background: #f0f5ff; }
   .drop-zone .drop-icon { font-size: 3rem; color: #adb5bd; margin-bottom: 12px; }
   .drop-zone.loaded { border-style: solid; border-color: #198754; background: #f0fff4; }
   .drop-zone.loaded .drop-icon { color: #198754; }
 
-  /* ── Step cards ────────────────────────────────────────────────────────── */
   .step-card {
     background: #fff;
     border-radius: 14px;
@@ -31,75 +28,40 @@
     box-shadow: 0 1px 4px rgba(0,0,0,.04);
   }
   .step-number {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px; height: 28px;
-    border-radius: 50%;
-    background: #0d6efd;
-    color: #fff;
-    font-size: .8rem;
-    font-weight: 700;
-    margin-right: 10px;
-    flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #0d6efd; color: #fff;
+    font-size: .8rem; font-weight: 700;
+    margin-right: 10px; flex-shrink: 0;
   }
-  .step-title {
-    font-weight: 600;
-    font-size: 1rem;
-    display: flex;
-    align-items: center;
-    margin-bottom: 18px;
-  }
+  .step-title { font-weight: 600; font-size: 1rem; display: flex; align-items: center; margin-bottom: 18px; }
 
-  /* ── Pill toggles for categories ───────────────────────────────────────── */
   .pill-group { display: flex; flex-wrap: wrap; gap: 8px; }
   .pill {
-    padding: 5px 14px;
-    border-radius: 999px;
-    border: 1.5px solid #dee2e6;
-    background: #fff;
-    font-size: .85rem;
-    cursor: pointer;
-    transition: all .15s;
-    user-select: none;
+    padding: 5px 14px; border-radius: 999px;
+    border: 1.5px solid #dee2e6; background: #fff;
+    font-size: .85rem; cursor: pointer; transition: all .15s; user-select: none;
   }
   .pill:hover { border-color: #0d6efd; color: #0d6efd; }
   .pill.selected-include { background: #0d6efd; border-color: #0d6efd; color: #fff; }
   .pill.selected-exclude { background: #dc3545; border-color: #dc3545; color: #fff; }
-  .pill.licence { border-color: #dc3545; color: #dc3545; }
-  .pill.licence.selected-exclude { background: #dc3545; color: #fff; }
 
-  /* ── Generate button ───────────────────────────────────────────────────── */
-  #generateBtn {
-    height: 52px;
-    font-size: 1.05rem;
-    font-weight: 600;
-    border-radius: 12px;
-    min-width: 220px;
-  }
-
-  /* ── Pill legend ───────────────────────────────────────────────────────── */
-  .legend-dot {
-    display: inline-block;
-    width: 10px; height: 10px;
-    border-radius: 50%;
-    margin-right: 5px;
-  }
+  #generateBtn { height: 52px; font-size: 1.05rem; font-weight: 600; border-radius: 12px; min-width: 220px; }
+  .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="page-header">
   <h2>Promo Selection</h2>
-  <p>Drop your catalogue, set conditions, download your selection.</p>
+  <p>Drop your catalogue, set conditions, download your selection — processed entirely in your browser.</p>
 </div>
 
 <div style="max-width:860px;">
 
-  <!-- ── STEP 1 · Drop file ──────────────────────────────────────────────── -->
+  <!-- STEP 1 · Drop file -->
   <div class="step-card">
     <div class="step-title"><span class="step-number">1</span>Upload catalogue</div>
-
     <div class="drop-zone" id="dropZone">
       <div class="drop-icon"><i class="fas fa-file-excel"></i></div>
       <div id="dropText" class="fw-semibold mb-1">Drag & drop your .xlsx file here</div>
@@ -112,10 +74,10 @@
     <div id="parseStatus" class="mt-2 small text-muted"></div>
   </div>
 
-  <!-- ── STEPS 2-4 · Conditions (hidden until file loaded) ──────────────── -->
+  <!-- STEPS 2-4 (hidden until file loaded) -->
   <div id="conditionsSection" style="display:none;">
 
-    <!-- STEP 2 · Channel + discount ───────────────────────────────────────── -->
+    <!-- STEP 2 · Channel + discount -->
     <div class="step-card">
       <div class="step-title"><span class="step-number">2</span>Channel & discount</div>
       <div class="row g-3 align-items-end">
@@ -125,7 +87,7 @@
         </div>
         <div class="col-sm-4">
           <label class="form-label small fw-semibold">Adjustment type</label>
-          <select id="adjustmentType" class="form-select">
+          <select id="adjustmentType" class="form-select" onchange="toggleAdjValue()">
             <option value="none">No adjustment</option>
             <option value="extra_discount">Extra discount on top</option>
             <option value="new_discount">Override to new discount</option>
@@ -141,12 +103,10 @@
       </div>
     </div>
 
-    <!-- STEP 3 · Filters ──────────────────────────────────────────────────── -->
+    <!-- STEP 3 · Filters -->
     <div class="step-card">
       <div class="step-title"><span class="step-number">3</span>Filters <span class="text-muted fw-normal small ms-2">— all optional</span></div>
       <div class="row g-3 mb-4">
-
-        <!-- Final price -->
         <div class="col-sm-6">
           <label class="form-label small fw-semibold">Final price (€)</label>
           <div class="input-group">
@@ -156,8 +116,6 @@
             <input type="number" id="maxFinalPrice" class="form-control" placeholder="—" min="0" step="0.01">
           </div>
         </div>
-
-        <!-- Channel discount -->
         <div class="col-sm-6">
           <label class="form-label small fw-semibold">Channel discount (%)</label>
           <div class="input-group">
@@ -167,13 +125,11 @@
             <input type="number" id="maxChannelDiscount" class="form-control" placeholder="—" min="0" max="100">
           </div>
         </div>
-
-        <!-- Stock -->
         <div class="col-sm-6">
           <label class="form-label small fw-semibold">Stock</label>
           <div class="d-flex align-items-center gap-3">
             <div class="form-check mb-0">
-              <input class="form-check-input" type="checkbox" id="excludeZeroStock">
+              <input class="form-check-input" type="checkbox" id="excludeZeroStock" onchange="toggleStockCol()">
               <label class="form-check-label small" for="excludeZeroStock">Exclude 0-stock items</label>
             </div>
             <select id="stockColumn" class="form-select form-select-sm" style="max-width:180px;" disabled>
@@ -183,36 +139,32 @@
         </div>
       </div>
 
-      <!-- Categories as pills ───────────────────────────────────────────── -->
+      <!-- Category pills -->
       <div id="catSection">
         <div class="d-flex align-items-center justify-content-between mb-2">
           <span class="small fw-semibold">Categories</span>
-          <div class="d-flex gap-3">
-            <span class="small text-muted"><span class="legend-dot" style="background:#0d6efd;"></span>Include only</span>
-            <span class="small text-muted"><span class="legend-dot" style="background:#dc3545;"></span>Exclude</span>
-            <span class="small text-muted">Click once = include &nbsp;·&nbsp; Click twice = exclude &nbsp;·&nbsp; Click again = clear</span>
-          </div>
+          <span class="small text-muted">
+            <span class="legend-dot" style="background:#0d6efd;"></span>Include only &nbsp;·&nbsp;
+            <span class="legend-dot" style="background:#dc3545;"></span>Exclude &nbsp;·&nbsp;
+            Click once = include · twice = exclude · again = clear
+          </span>
         </div>
-
-        <!-- Licences shortcut -->
         <div class="mb-3">
-          <button type="button" id="btnExclLicences" class="btn btn-sm btn-outline-danger">
+          <button type="button" class="btn btn-sm btn-outline-danger" onclick="excludeLicences()">
             <i class="fas fa-ban me-1"></i>Exclude all licences
           </button>
           <span class="text-muted small ms-2">Underwear · Perfumes &amp; Cosmetics · Soft Accessories · Leather Accessories · Beachwear · Eyewear · Fashion Jewelery · Watches</span>
         </div>
-
         <div class="pill-group" id="catPills"></div>
       </div>
 
-      <!-- Microcategories ──────────────────────────────────────────────── -->
       <div id="microSection" class="mt-4" style="display:none;">
         <div class="small fw-semibold mb-2">Microcategories</div>
         <div class="pill-group" id="microPills"></div>
       </div>
     </div>
 
-    <!-- ── STEP 4 · Generate ──────────────────────────────────────────────── -->
+    <!-- STEP 4 · Generate -->
     <div class="step-card">
       <div class="d-flex align-items-center gap-4">
         <button id="generateBtn" class="btn btn-primary" onclick="runExport()">
@@ -222,7 +174,7 @@
       </div>
     </div>
 
-  </div><!-- /conditionsSection -->
+  </div>
 </div>
 {% endblock %}
 
@@ -233,186 +185,215 @@ const LICENCE_CATEGORIES = [
   'Beachwear','Eyewear','Fashion Jewelery','Watches'
 ];
 
-let uploadedFile  = null;
-let parsedData    = null;
+const DISCOUNT_SUFFIX = ' discount';
+const STOCK_COLUMNS   = [
+  'TOTAL STOCK (ALL REGIONS)','EU STOCK','US STOCK','RU STOCK','ASIA STOCK',
+  'AMERICAS STOCK','ITG STOCK','SPEDIMEX STOCK','EU DOS STOCK','DISPLAY ZONE STOCK'
+];
+
+let workbook  = null;   // SheetJS workbook
+let sheetData = null;   // array of row arrays (first row = headers)
+let fileName  = '';
 
 // ── Drag & drop ───────────────────────────────────────────────────────────────
 const dropZone = document.getElementById('dropZone');
-const fileInput = document.getElementById('fileInput');
-
-dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('click',     () => document.getElementById('fileInput').click());
 dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('drag-over');
-  const f = e.dataTransfer.files[0];
-  if (f) handleFile(f);
-});
-fileInput.addEventListener('change', () => {
-  if (fileInput.files[0]) handleFile(fileInput.files[0]);
-});
+dropZone.addEventListener('drop',      e => { e.preventDefault(); dropZone.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
+document.getElementById('fileInput').addEventListener('change', e => handleFile(e.target.files[0]));
 
-async function handleFile(file) {
-  uploadedFile = file;
-  document.getElementById('parseStatus').textContent = 'Reading file…';
-  dropZone.classList.remove('loaded');
+function handleFile(file) {
+  if (!file) return;
+  fileName = file.name;
+  document.getElementById('parseStatus').textContent = 'Reading…';
 
-  const fd = new FormData();
-  fd.append('file', file);
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      workbook  = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      const ws  = workbook.Sheets[workbook.SheetNames[0]];
+      sheetData = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
 
-  try {
-    const res = await fetch('/promo-selection/parse', { method: 'POST', body: fd });
-    let data;
-    try { data = await res.json(); } catch(_) {
-      document.getElementById('parseStatus').textContent = `❌ Server error (HTTP ${res.status})`;
-      return;
+      const headers  = sheetData[0];
+      const channels = headers.filter(h => typeof h === 'string' && h.toLowerCase().endsWith(DISCOUNT_SUFFIX))
+                               .map(h => h.slice(0, -DISCOUNT_SUFFIX.length));
+      const stockCols = STOCK_COLUMNS.filter(c => headers.includes(c));
+
+      const catIdx   = headers.indexOf('CATEGORY');
+      const microIdx = headers.indexOf('MICROCATEGORY');
+      const cats   = catIdx   >= 0 ? [...new Set(sheetData.slice(1).map(r => r[catIdx]).filter(Boolean).map(String))].sort() : [];
+      const micros = microIdx >= 0 ? [...new Set(sheetData.slice(1).map(r => r[microIdx]).filter(Boolean).map(String))].sort() : [];
+
+      // Populate UI
+      const sel = document.getElementById('channelSelect');
+      sel.innerHTML = channels.map(c => `<option value="${c}">${c}</option>`).join('');
+
+      const sc = document.getElementById('stockColumn');
+      sc.innerHTML = '<option value="">— column —</option>' + stockCols.map(c => `<option>${c}</option>`).join('');
+
+      buildPills('catPills',   cats,   LICENCE_CATEGORIES);
+      if (micros.length) {
+        document.getElementById('microSection').style.display = '';
+        buildPills('microPills', micros, []);
+      }
+
+      dropZone.classList.add('loaded');
+      document.getElementById('dropText').textContent = '✓ ' + file.name;
+      document.getElementById('parseStatus').textContent = `${channels.length} channels · ${cats.length} categories`;
+      document.getElementById('conditionsSection').style.display = '';
+    } catch(err) {
+      document.getElementById('parseStatus').textContent = '❌ ' + err.message;
     }
-    if (data.error) { document.getElementById('parseStatus').textContent = '❌ ' + data.error; return; }
-
-    parsedData = data;
-    populateControls(data);
-
-    dropZone.classList.add('loaded');
-    document.getElementById('dropText').textContent = '✓ ' + file.name;
-    document.getElementById('parseStatus').textContent =
-      `${data.channels.length} channels · ${data.categories.length} categories`;
-    document.getElementById('conditionsSection').style.display = '';
-
-  } catch(e) {
-    document.getElementById('parseStatus').textContent = '❌ ' + e.message;
-  }
+  };
+  reader.readAsArrayBuffer(file);
 }
 
-// ── Populate controls ─────────────────────────────────────────────────────────
-function populateControls(data) {
-  // Channels
-  const sel = document.getElementById('channelSelect');
-  sel.innerHTML = '';
-  data.channels.forEach(ch => {
-    const o = document.createElement('option'); o.value = ch; o.textContent = ch;
-    sel.appendChild(o);
-  });
-
-  // Stock columns
-  const sc = document.getElementById('stockColumn');
-  sc.innerHTML = '<option value="">— column —</option>';
-  data.stock_columns.forEach(c => {
-    const o = document.createElement('option'); o.value = c; o.textContent = c;
-    sc.appendChild(o);
-  });
-
-  // Category pills
-  buildPills('catPills', data.categories, LICENCE_CATEGORIES);
-
-  // Microcategory pills
-  if (data.microcategories.length) {
-    document.getElementById('microSection').style.display = '';
-    buildPills('microPills', data.microcategories, []);
-  }
-}
-
-// ── Pills (3-state: neutral → include → exclude → neutral) ───────────────────
-function buildPills(containerId, items, licenceItems) {
-  const container = document.getElementById(containerId);
-  container.innerHTML = '';
+// ── Pills ─────────────────────────────────────────────────────────────────────
+function buildPills(id, items, licenceItems) {
+  const c = document.getElementById(id);
+  c.innerHTML = '';
   items.forEach(item => {
-    const pill = document.createElement('span');
-    pill.className = 'pill' + (licenceItems.includes(item) ? ' licence' : '');
-    pill.textContent = item;
-    pill.dataset.state = 'none';  // none | include | exclude
-    pill.addEventListener('click', () => cyclePill(pill));
-    container.appendChild(pill);
+    const p = document.createElement('span');
+    p.className = 'pill';
+    p.textContent = item;
+    p.dataset.state = 'none';
+    if (licenceItems.includes(item)) p.dataset.licence = '1';
+    p.onclick = () => cyclePill(p);
+    c.appendChild(p);
   });
 }
 
-function cyclePill(pill) {
-  const states = ['none','include','exclude'];
-  const next = states[(states.indexOf(pill.dataset.state) + 1) % 3];
-  pill.dataset.state = next;
-  pill.classList.remove('selected-include','selected-exclude');
-  if (next === 'include') pill.classList.add('selected-include');
-  if (next === 'exclude') pill.classList.add('selected-exclude');
+function cyclePill(p) {
+  const next = { none: 'include', include: 'exclude', exclude: 'none' }[p.dataset.state];
+  p.dataset.state = next;
+  p.classList.remove('selected-include', 'selected-exclude');
+  if (next === 'include') p.classList.add('selected-include');
+  if (next === 'exclude') p.classList.add('selected-exclude');
 }
 
-function getPillSelections(containerId) {
-  const include = [], exclude = [];
-  document.querySelectorAll(`#${containerId} .pill`).forEach(p => {
-    if (p.dataset.state === 'include') include.push(p.textContent);
-    if (p.dataset.state === 'exclude') exclude.push(p.textContent);
+function getPills(id) {
+  const inc = [], exc = [];
+  document.querySelectorAll(`#${id} .pill`).forEach(p => {
+    if (p.dataset.state === 'include') inc.push(p.textContent);
+    if (p.dataset.state === 'exclude') exc.push(p.textContent);
   });
-  return { include, exclude };
+  return { inc, exc };
 }
 
-// ── Licences button ───────────────────────────────────────────────────────────
-document.getElementById('btnExclLicences').addEventListener('click', () => {
-  document.querySelectorAll('#catPills .pill').forEach(pill => {
-    if (LICENCE_CATEGORIES.includes(pill.textContent)) {
-      pill.dataset.state = 'exclude';
-      pill.classList.remove('selected-include');
-      pill.classList.add('selected-exclude');
+function excludeLicences() {
+  document.querySelectorAll('#catPills .pill').forEach(p => {
+    if (LICENCE_CATEGORIES.includes(p.textContent)) {
+      p.dataset.state = 'exclude';
+      p.classList.remove('selected-include');
+      p.classList.add('selected-exclude');
     }
   });
-});
+}
 
-// ── Adjustment type show/hide value ──────────────────────────────────────────
-document.getElementById('adjustmentType').addEventListener('change', function() {
-  document.getElementById('adjValueCol').style.display =
-    this.value === 'none' ? 'none' : '';
-});
+function toggleAdjValue() {
+  const v = document.getElementById('adjustmentType').value;
+  document.getElementById('adjValueCol').style.display = v === 'none' ? 'none' : '';
+}
 
-// ── Stock column enable ───────────────────────────────────────────────────────
-document.getElementById('excludeZeroStock').addEventListener('change', function() {
-  document.getElementById('stockColumn').disabled = !this.checked;
-});
+function toggleStockCol() {
+  document.getElementById('stockColumn').disabled = !document.getElementById('excludeZeroStock').checked;
+}
 
-// ── Export ────────────────────────────────────────────────────────────────────
-async function runExport() {
-  if (!uploadedFile) return;
-  const status = document.getElementById('exportStatus');
-  const btn    = document.getElementById('generateBtn');
+// ── Export (100% client-side) ─────────────────────────────────────────────────
+function runExport() {
+  if (!sheetData) return;
+
+  const status  = document.getElementById('exportStatus');
+  const btn     = document.getElementById('generateBtn');
+  btn.disabled  = true;
   status.textContent = 'Processing…';
-  btn.disabled = true;
-
-  const cats   = getPillSelections('catPills');
-  const micros = getPillSelections('microPills');
-
-  const fd = new FormData();
-  fd.append('file',                  uploadedFile);
-  fd.append('channel',               document.getElementById('channelSelect').value);
-  fd.append('adjustment_type',       document.getElementById('adjustmentType').value);
-  fd.append('adjustment_value',      document.getElementById('adjustmentValue').value || '');
-  fd.append('min_final_price',       document.getElementById('minFinalPrice').value);
-  fd.append('max_final_price',       document.getElementById('maxFinalPrice').value);
-  fd.append('min_channel_discount',  document.getElementById('minChannelDiscount').value);
-  fd.append('max_channel_discount',  document.getElementById('maxChannelDiscount').value);
-  fd.append('exclude_zero_stock',    document.getElementById('excludeZeroStock').checked ? 'true' : 'false');
-  fd.append('stock_column',          document.getElementById('stockColumn').value);
-  fd.append('include_categories',    JSON.stringify(cats.include));
-  fd.append('exclude_categories',    JSON.stringify(cats.exclude));
-  fd.append('include_microcategories', JSON.stringify(micros.include));
-  fd.append('exclude_microcategories', JSON.stringify(micros.exclude));
 
   try {
-    const res = await fetch('/promo-selection/export', { method: 'POST', body: fd });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      status.textContent = '❌ ' + (err.error || 'Error');
-      btn.disabled = false; return;
+    const headers      = sheetData[0];
+    const channel      = document.getElementById('channelSelect').value;
+    const adjType      = document.getElementById('adjustmentType').value;
+    const adjValue     = parseFloat(document.getElementById('adjustmentValue').value) || null;
+    const minPrice     = parseFloat(document.getElementById('minFinalPrice').value)    || null;
+    const maxPrice     = parseFloat(document.getElementById('maxFinalPrice').value)    || null;
+    const minDisc      = parseFloat(document.getElementById('minChannelDiscount').value) || null;
+    const maxDisc      = parseFloat(document.getElementById('maxChannelDiscount').value) || null;
+    const exclZero     = document.getElementById('excludeZeroStock').checked;
+    const stockColName = document.getElementById('stockColumn').value;
+
+    const cats   = getPills('catPills');
+    const micros = getPills('microPills');
+
+    const discColName = channel + DISCOUNT_SUFFIX;
+    const discIdx     = headers.indexOf(discColName);
+    const priceIdx    = headers.indexOf('PRICE');
+    const catIdx      = headers.indexOf('CATEGORY');
+    const microIdx    = headers.indexOf('MICROCATEGORY');
+    const stockIdx    = headers.indexOf(stockColName);
+
+    if (discIdx < 0) { status.textContent = `❌ Column "${discColName}" not found.`; btn.disabled = false; return; }
+
+    // Output headers: insert FINAL PRICE after PRICE
+    const outHeaders = [...headers];
+    const fpPos = priceIdx >= 0 ? priceIdx + 1 : outHeaders.length;
+    outHeaders.splice(fpPos, 0, 'FINAL PRICE');
+
+    const outRows = [outHeaders];
+    let count = 0;
+
+    for (let i = 1; i < sheetData.length; i++) {
+      const row   = sheetData[i];
+      const price = toNum(row[priceIdx]);
+      const disc  = toNum(row[discIdx]);
+
+      let final;
+      if (adjType === 'new_discount' && adjValue !== null)
+        final = price * (1 - adjValue / 100);
+      else if (adjType === 'extra_discount' && adjValue !== null)
+        final = price * (1 - disc / 100) * (1 - adjValue / 100);
+      else
+        final = price * (1 - disc / 100);
+      final = Math.round(final * 100) / 100;
+
+      if (minPrice !== null && final < minPrice) continue;
+      if (maxPrice !== null && final > maxPrice) continue;
+      if (minDisc  !== null && disc  < minDisc)  continue;
+      if (maxDisc  !== null && disc  > maxDisc)  continue;
+
+      if (exclZero && stockIdx >= 0 && toNum(row[stockIdx]) <= 0) continue;
+
+      const cat   = catIdx   >= 0 && row[catIdx]   ? String(row[catIdx])   : '';
+      const micro = microIdx >= 0 && row[microIdx] ? String(row[microIdx]) : '';
+
+      if (cats.inc.length   && !cats.inc.includes(cat))     continue;
+      if (cats.exc.length   &&  cats.exc.includes(cat))     continue;
+      if (micros.inc.length && !micros.inc.includes(micro)) continue;
+      if (micros.exc.length &&  micros.exc.includes(micro)) continue;
+
+      const outRow = [...row];
+      outRow.splice(fpPos, 0, final);
+      outRows.push(outRow);
+      count++;
     }
-    const rowCount = res.headers.get('X-Row-Count');
-    const blob = await res.blob();
-    const cd   = res.headers.get('Content-Disposition') || '';
-    const match = cd.match(/filename="(.+?)"/);
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = match ? match[1] : 'promo_selection.xlsx';
-    document.body.appendChild(a); a.click(); a.remove();
-    status.textContent = `✅ ${rowCount} items downloaded`;
-  } catch(e) {
-    status.textContent = '❌ ' + e.message;
+
+    // Build and download xlsx
+    const ws  = XLSX.utils.aoa_to_sheet(outRows);
+    const wb  = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Selection');
+    const baseName = fileName.replace(/\.xlsx$/i, '') + '_promo_selection.xlsx';
+    XLSX.writeFile(wb, baseName);
+
+    status.textContent = `✅ ${count} items downloaded`;
+  } catch(err) {
+    status.textContent = '❌ ' + err.message;
   }
+
   btn.disabled = false;
+}
+
+function toNum(v) {
+  const n = parseFloat(v);
+  return isNaN(n) ? 0 : n;
 }
 </script>
 {% endblock %}
