@@ -1,5 +1,4 @@
 from io import BytesIO
-import re
 
 import pandas as pd
 from flask import Blueprint, Response, jsonify, render_template, request
@@ -25,7 +24,7 @@ STOCK_COLUMNS = [
 
 def _discount_columns(df: pd.DataFrame) -> list[str]:
     """Return all columns whose name ends with ' discount'."""
-    return [c for c in df.columns if c.lower().endswith(DISCOUNT_SUFFIX)]
+    return [c for c in df.columns if isinstance(c, str) and c.lower().endswith(DISCOUNT_SUFFIX)]
 
 
 def _channel_name(col: str) -> str:
@@ -72,7 +71,6 @@ def parse():
                 micro_idx = i
 
         # Detect channels and stock columns from headers alone
-        header_series = pd.Series(headers)
         dummy_df = pd.DataFrame(columns=headers)
         channels   = [_channel_name(c) for c in _discount_columns(dummy_df)]
         stock_cols = _available_stock_cols(dummy_df)
