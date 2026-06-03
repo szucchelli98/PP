@@ -87,6 +87,17 @@
         <!-- Categories -->
         <div class="col-md-6">
           <label class="form-label fw-semibold">Categories</label>
+          <div class="mb-2">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="excludeLicences">
+              <label class="form-check-label fw-semibold text-danger" for="excludeLicences">
+                <i class="fas fa-ban me-1"></i>Exclude Licences
+              </label>
+            </div>
+            <div class="form-text ms-4" style="margin-top:-2px;">
+              Underwear · Perfumes &amp; Cosmetics · Soft Accessories · Leather Accessories · Beachwear · Eyewear · Fashion Jewelery · Watches
+            </div>
+          </div>
           <div class="row g-2">
             <div class="col-6">
               <label class="form-text">Include only</label>
@@ -139,8 +150,30 @@ const stockColSelect  = document.getElementById('stockColumn');
 const excludeZero     = document.getElementById('excludeZeroStock');
 const exportBtn       = document.getElementById('exportBtn');
 const exportStatus    = document.getElementById('exportStatus');
+const excludeLicences = document.getElementById('excludeLicences');
+
+const LICENCE_CATEGORIES = [
+  'Underwear',
+  'Perfumes & Cosmetics',
+  'Soft Accessories',
+  'Leather Accessories',
+  'Beachwear',
+  'Eyewear',
+  'Fashion Jewelery',
+  'Watches',
+];
 
 let parsedData = null;
+
+// ── Licences shortcut ─────────────────────────────────────────────────────────
+excludeLicences.addEventListener('change', () => {
+  const sel = document.getElementById('excludeCategories');
+  for (const opt of sel.options) {
+    if (LICENCE_CATEGORIES.includes(opt.value)) {
+      opt.selected = excludeLicences.checked;
+    }
+  }
+});
 
 // ── Auto-parse on file select ─────────────────────────────────────────────────
 fileInput.addEventListener('change', async () => {
@@ -186,6 +219,16 @@ fileInput.addEventListener('change', async () => {
         o.value = cat; o.textContent = cat;
         sel.appendChild(o);
       });
+    });
+
+    // If user manually changes exclude list, uncheck the licences shortcut if needed
+    document.getElementById('excludeCategories').addEventListener('change', () => {
+      const sel = document.getElementById('excludeCategories');
+      const selectedVals = [...sel.selectedOptions].map(o => o.value);
+      const allLicencesSelected = LICENCE_CATEGORIES.every(lc =>
+        !data.categories.includes(lc) || selectedVals.includes(lc)
+      );
+      excludeLicences.checked = allLicencesSelected;
     });
 
     // Populate microcategory selects
