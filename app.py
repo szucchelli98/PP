@@ -25,9 +25,12 @@ def create_app():
     def handle_exception(e):
         from werkzeug.exceptions import HTTPException
         if isinstance(e, HTTPException):
-            return e  # let Flask handle 404, 405, etc. normally
-        safe = str(e).replace('"', "'").replace("\n", " ")[:300]
-        return Response(f'{{"error":"{safe}"}}', status=500, mimetype="application/json")
+            return e
+        return Response(
+            json.dumps({"error": str(e)[:500]}),
+            status=500,
+            mimetype="application/json",
+        )
 
     @app.route("/")
     def dashboard():
