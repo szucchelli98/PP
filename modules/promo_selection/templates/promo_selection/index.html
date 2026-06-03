@@ -1,0 +1,271 @@
+{% extends 'base.html' %}
+{% block title %}Promo Selection – Marketplace Tool{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Promo Selection</h2>
+  <p>Upload the catalogue, set conditions, download the filtered selection.</p>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+
+    <!-- STEP 1 — Upload -->
+    <div class="section-label mb-3"><i class="fas fa-upload me-2"></i>1. Upload catalogue</div>
+    <div class="mb-4">
+      <input type="file" id="catalogueFile" accept=".xlsx" class="form-control" style="max-width:420px;">
+      <div id="parseStatus" class="mt-2 small text-muted"></div>
+    </div>
+
+    <!-- STEP 2 — Conditions (hidden until file parsed) -->
+    <div id="conditionsSection" style="display:none;">
+      <hr>
+      <div class="section-label mb-3"><i class="fas fa-sliders-h me-2"></i>2. Set conditions</div>
+
+      <div class="row g-4">
+
+        <!-- Channel -->
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Channel <span class="text-danger">*</span></label>
+          <select id="channelSelect" class="form-select">
+            <option value="">— select channel —</option>
+          </select>
+        </div>
+
+        <!-- Discount adjustment -->
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Discount adjustment</label>
+          <div class="input-group">
+            <select id="adjustmentType" class="form-select" style="max-width:200px;">
+              <option value="extra_discount">Extra discount on top (%)</option>
+              <option value="new_discount">Override to new discount (%)</option>
+            </select>
+            <input type="number" id="adjustmentValue" class="form-control" placeholder="e.g. 10" min="0" max="100" step="0.1">
+            <span class="input-group-text">%</span>
+          </div>
+          <div class="form-text">Leave empty if no adjustment needed.</div>
+        </div>
+
+        <!-- Final price range -->
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Final price (€)</label>
+          <div class="input-group">
+            <span class="input-group-text">Min</span>
+            <input type="number" id="minFinalPrice" class="form-control" placeholder="e.g. 0" min="0" step="0.01">
+            <span class="input-group-text">Max</span>
+            <input type="number" id="maxFinalPrice" class="form-control" placeholder="e.g. 100" min="0" step="0.01">
+          </div>
+          <div class="form-text">Leave empty to skip this filter.</div>
+        </div>
+
+        <!-- Channel discount range -->
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Channel discount filter (%)</label>
+          <div class="input-group">
+            <span class="input-group-text">Min</span>
+            <input type="number" id="minChannelDiscount" class="form-control" placeholder="e.g. 30" min="0" max="100">
+            <span class="input-group-text">Max</span>
+            <input type="number" id="maxChannelDiscount" class="form-control" placeholder="e.g. 60" min="0" max="100">
+          </div>
+          <div class="form-text">Exclude items outside this discount range.</div>
+        </div>
+
+        <!-- Stock filter -->
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Stock filter</label>
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <div class="form-check mb-0">
+              <input class="form-check-input" type="checkbox" id="excludeZeroStock">
+              <label class="form-check-label" for="excludeZeroStock">Exclude items with 0 stock</label>
+            </div>
+          </div>
+          <select id="stockColumn" class="form-select" disabled>
+            <option value="">— select stock column —</option>
+          </select>
+        </div>
+
+        <!-- Categories -->
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Categories</label>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-text">Include only</label>
+              <select id="includeCategories" class="form-select" multiple size="5"></select>
+            </div>
+            <div class="col-6">
+              <label class="form-text">Exclude</label>
+              <select id="excludeCategories" class="form-select" multiple size="5"></select>
+            </div>
+          </div>
+          <div class="form-text">Hold Ctrl / Cmd to select multiple. Leave both empty to include all.</div>
+        </div>
+
+        <!-- Microcategories -->
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Microcategories</label>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-text">Include only</label>
+              <select id="includeMicrocategories" class="form-select" multiple size="5"></select>
+            </div>
+            <div class="col-6">
+              <label class="form-text">Exclude</label>
+              <select id="excludeMicrocategories" class="form-select" multiple size="5"></select>
+            </div>
+          </div>
+          <div class="form-text">Hold Ctrl / Cmd to select multiple. Leave both empty to include all.</div>
+        </div>
+
+      </div><!-- /row -->
+
+      <hr>
+      <button id="exportBtn" class="btn btn-primary px-4">
+        <i class="fas fa-download me-2"></i>Generate & Download
+      </button>
+      <span id="exportStatus" class="ms-3 small text-muted"></span>
+    </div><!-- /conditionsSection -->
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const fileInput       = document.getElementById('catalogueFile');
+const parseStatus     = document.getElementById('parseStatus');
+const condSection     = document.getElementById('conditionsSection');
+const channelSelect   = document.getElementById('channelSelect');
+const stockColSelect  = document.getElementById('stockColumn');
+const excludeZero     = document.getElementById('excludeZeroStock');
+const exportBtn       = document.getElementById('exportBtn');
+const exportStatus    = document.getElementById('exportStatus');
+
+let parsedData = null;
+
+// ── Auto-parse on file select ─────────────────────────────────────────────────
+fileInput.addEventListener('change', async () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  parseStatus.textContent = 'Reading file…';
+  condSection.style.display = 'none';
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  try {
+    const res  = await fetch('/promo-selection/parse', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.error) { parseStatus.textContent = '❌ ' + data.error; return; }
+
+    parsedData = data;
+    parseStatus.textContent = `✅ File loaded — ${data.channels.length} channel(s), ${data.categories.length} categor(ies)`;
+
+    // Populate channels
+    channelSelect.innerHTML = '<option value="">— select channel —</option>';
+    data.channels.forEach(ch => {
+      const o = document.createElement('option');
+      o.value = ch; o.textContent = ch;
+      channelSelect.appendChild(o);
+    });
+
+    // Populate stock columns
+    stockColSelect.innerHTML = '<option value="">— select stock column —</option>';
+    data.stock_columns.forEach(sc => {
+      const o = document.createElement('option');
+      o.value = sc; o.textContent = sc;
+      stockColSelect.appendChild(o);
+    });
+
+    // Populate category selects
+    ['includeCategories','excludeCategories'].forEach(id => {
+      const sel = document.getElementById(id);
+      sel.innerHTML = '';
+      data.categories.forEach(cat => {
+        const o = document.createElement('option');
+        o.value = cat; o.textContent = cat;
+        sel.appendChild(o);
+      });
+    });
+
+    // Populate microcategory selects
+    ['includeMicrocategories','excludeMicrocategories'].forEach(id => {
+      const sel = document.getElementById(id);
+      sel.innerHTML = '';
+      data.microcategories.forEach(mc => {
+        const o = document.createElement('option');
+        o.value = mc; o.textContent = mc;
+        sel.appendChild(o);
+      });
+    });
+
+    condSection.style.display = '';
+  } catch (e) {
+    parseStatus.textContent = '❌ Error reading file.';
+  }
+});
+
+// ── Enable stock column select when checkbox ticked ──────────────────────────
+excludeZero.addEventListener('change', () => {
+  stockColSelect.disabled = !excludeZero.checked;
+});
+
+// ── Export ────────────────────────────────────────────────────────────────────
+exportBtn.addEventListener('click', async () => {
+  const channel = channelSelect.value;
+  if (!channel) { alert('Please select a channel.'); return; }
+  if (!fileInput.files[0]) { alert('Please upload the catalogue file.'); return; }
+
+  exportStatus.textContent = 'Processing…';
+  exportBtn.disabled = true;
+
+  const getSelected = id => JSON.stringify([...document.getElementById(id).selectedOptions].map(o => o.value));
+
+  const fd = new FormData();
+  fd.append('file',                  fileInput.files[0]);
+  fd.append('channel',               channel);
+  fd.append('adjustment_type',       document.getElementById('adjustmentType').value);
+  fd.append('adjustment_value',      document.getElementById('adjustmentValue').value);
+  fd.append('min_final_price',       document.getElementById('minFinalPrice').value);
+  fd.append('max_final_price',       document.getElementById('maxFinalPrice').value);
+  fd.append('min_channel_discount',  document.getElementById('minChannelDiscount').value);
+  fd.append('max_channel_discount',  document.getElementById('maxChannelDiscount').value);
+  fd.append('exclude_zero_stock',    excludeZero.checked ? 'true' : 'false');
+  fd.append('stock_column',          stockColSelect.value);
+  fd.append('include_categories',    getSelected('includeCategories'));
+  fd.append('exclude_categories',    getSelected('excludeCategories'));
+  fd.append('include_microcategories', getSelected('includeMicrocategories'));
+  fd.append('exclude_microcategories', getSelected('excludeMicrocategories'));
+
+  try {
+    const res = await fetch('/promo-selection/export', { method: 'POST', body: fd });
+
+    if (!res.ok) {
+      const err = await res.json();
+      exportStatus.textContent = '❌ ' + (err.error || 'Unknown error');
+      exportBtn.disabled = false;
+      return;
+    }
+
+    const rowCount = res.headers.get('X-Row-Count');
+    const blob     = await res.blob();
+    const url      = URL.createObjectURL(blob);
+    const a        = document.createElement('a');
+    const cd       = res.headers.get('Content-Disposition') || '';
+    const match    = cd.match(/filename="(.+?)"/);
+    a.href         = url;
+    a.download     = match ? match[1] : 'promo_selection.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    exportStatus.textContent = `✅ Done — ${rowCount} item(s) selected.`;
+  } catch (e) {
+    exportStatus.textContent = '❌ Network error.';
+  }
+
+  exportBtn.disabled = false;
+});
+</script>
+{% endblock %}

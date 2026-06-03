@@ -13,11 +13,13 @@ def create_app():
     from modules.bag_dimensions.routes import bag_bp
     from modules.file_splitter.routes import splitter_bp
     from modules.best_secret.routes import best_secret_bp
+    from modules.promo_selection.routes import promo_bp
 
     app.register_blueprint(email_bp, url_prefix="/email")
     app.register_blueprint(bag_bp, url_prefix="/bag-dimensions")
     app.register_blueprint(splitter_bp, url_prefix="/file-splitter")
     app.register_blueprint(best_secret_bp, url_prefix="/best-secret")
+    app.register_blueprint(promo_bp, url_prefix="/promo-selection")
 
     @app.errorhandler(Exception)
     def handle_exception(e):
