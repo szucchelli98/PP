@@ -22,18 +22,6 @@ STOCK_COLUMNS = [
 ]
 
 
-def _discount_columns(df: pd.DataFrame) -> list[str]:
-    """Return all columns whose name ends with ' discount'."""
-    return [c for c in df.columns if isinstance(c, str) and c.lower().endswith(DISCOUNT_SUFFIX)]
-
-
-def _channel_name(col: str) -> str:
-    """'bestSecret discount' → 'bestSecret'"""
-    return col[: -len(DISCOUNT_SUFFIX)]
-
-
-def _available_stock_cols(df: pd.DataFrame) -> list[str]:
-    return [c for c in STOCK_COLUMNS if c in df.columns]
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -45,8 +33,7 @@ def index():
 
 @promo_bp.route("/parse", methods=["POST"])
 def parse():
-    """Read the uploaded file and return channels, categories, microcategories, stock columns.
-    Uses openpyxl read-only streaming to avoid loading the full file into memory."""
+    """Stream the xlsx with openpyxl read-only to avoid OOM on free tier."""
     file = request.files.get("file")
     if not file:
         return jsonify({"error": "No file provided"}), 400
@@ -55,35 +42,34 @@ def parse():
 
         wb = openpyxl.load_workbook(BytesIO(file.read()), read_only=True, data_only=True)
         ws = wb.active
-
-        # First row = headers
-        headers = []
-        cat_idx = micro_idx = None
         rows_iter = ws.rows
 
-        for cell in next(rows_iter):
-            headers.append(cell.value)
+        # ── Header row ────────────────────────────────────────────────────────
+        headers = [cell.value for cell in next(rows_iter)]
 
-        for i, h in enumerate(headers):
-            if h == "CATEGORY":
-                cat_idx = i
-            elif h == "MICROCATEGORY":
-                micro_idx = i
+        cat_idx   = headers.index("CATEGORY")      if "CATEGORY"      in headers else None
+        micro_idx = headers.index("MICROCATEGORY") if "MICROCATEGORY" in headers else None
 
-        # Detect channels and stock columns from headers alone
-        dummy_df = pd.DataFrame(columns=headers)
-        channels   = [_channel_name(c) for c in _discount_columns(dummy_df)]
-        stock_cols = _available_stock_cols(dummy_df)
+        # Channels: headers ending with " discount"
+        channels = [h[:-len(DISCOUNT_SUFFIX)] for h in headers
+                    if isinstance(h, str) and h.lower().endswith(DISCOUNT_SUFFIX)]
 
-        # Stream rows to collect unique categories/microcategories
+        # Stock columns: known names present in headers
+        stock_cols = [c for c in STOCK_COLUMNS if c in headers]
+
+        # ── Stream data rows ──────────────────────────────────────────────────
         categories_set      = set()
         microcategories_set = set()
 
         for row in rows_iter:
-            if cat_idx is not None and cat_idx < len(row) and row[cat_idx].value:
-                categories_set.add(str(row[cat_idx].value))
-            if micro_idx is not None and micro_idx < len(row) and row[micro_idx].value:
-                microcategories_set.add(str(row[micro_idx].value))
+            if cat_idx is not None:
+                v = row[cat_idx].value
+                if v:
+                    categories_set.add(str(v))
+            if micro_idx is not None:
+                v = row[micro_idx].value
+                if v:
+                    microcategories_set.add(str(v))
 
         wb.close()
 
