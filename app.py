@@ -23,8 +23,13 @@ def create_app():
 
     @app.errorhandler(Exception)
     def handle_exception(e):
-        safe = str(e).replace('"', "'").replace("\n", " ")[:300]
-        return Response(f'{{"error":"{safe}"}}', status=500, mimetype="application/json")
+        import traceback, sys
+        traceback.print_exc(file=sys.stderr)
+        return Response(
+            json.dumps({"error": str(e)[:500]}),
+            status=500,
+            mimetype="application/json",
+        )
 
     @app.route("/")
     def dashboard():
