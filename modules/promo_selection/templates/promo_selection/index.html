@@ -200,7 +200,13 @@ fileInput.addEventListener('change', async () => {
 
   try {
     const res  = await fetch('/promo-selection/parse', { method: 'POST', body: fd });
-    const data = await res.json();
+    let data;
+    try {
+      data = await res.json();
+    } catch (_) {
+      parseStatus.textContent = `❌ Server error (HTTP ${res.status}). The app may still be starting up — wait a few seconds and try again.`;
+      return;
+    }
     if (data.error) { parseStatus.textContent = '❌ ' + data.error; return; }
 
     parsedData = data;
@@ -258,7 +264,7 @@ fileInput.addEventListener('change', async () => {
 
     condSection.style.display = '';
   } catch (e) {
-    parseStatus.textContent = '❌ Error reading file.';
+    parseStatus.textContent = '❌ ' + (e.message || 'Unexpected error. Check your connection and try again.');
   }
 });
 
