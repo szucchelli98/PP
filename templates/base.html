@@ -26,21 +26,9 @@
         </a>
       </li>
       <li>
-        <a href="{{ url_for('email.index') }}"
-           class="{{ 'active' if request.blueprint == 'email' else '' }}">
-          <i class="fas fa-envelope"></i> Email Generator
-        </a>
-      </li>
-      <li>
         <a href="{{ url_for('bag.index') }}"
            class="{{ 'active' if request.blueprint == 'bag' else '' }}">
           <i class="fas fa-shopping-bag"></i> Bag Dimensions
-        </a>
-      </li>
-      <li>
-        <a href="{{ url_for('splitter.index') }}"
-           class="{{ 'active' if request.blueprint == 'splitter' else '' }}">
-          <i class="fas fa-scissors"></i> Material Excel Splitter
         </a>
       </li>
       <li>

@@ -1,174 +1,551 @@
 {% extends 'base.html' %}
-{% block title %}Bag Dimensions – Company Tools{% endblock %}
+{% block title %}Bag Dimensions – Marketplace Tool{% endblock %}
+
+{% block extra_head %}
+<style>
+  :root {
+    --pp: #7F77DD;
+    --pp-bg: rgba(127,119,221,0.07);
+    --pp-txt: #3C3489;
+    --teal: #1D9E75;
+    --teal-bg: rgba(29,158,117,0.07);
+    --teal-txt: #085041;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  @keyframes blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+
+  .dim-wrap { font-family: var(--bs-font-monospace); max-width: 680px; }
+
+  /* header bar */
+  .dim-header { display:flex; align-items:center; gap:10px; margin-bottom:1.5rem; }
+  .dim-dot { width:8px; height:8px; border-radius:50%; background:var(--pp); }
+  .dim-dot.active { background:var(--teal); animation:pulse 1s infinite; }
+  .dim-label { font-size:11px; letter-spacing:.12em; color:#888; flex:1; }
+  .dim-stage { font-size:10px; letter-spacing:.08em; color:#aaa; }
+
+  /* upload zone */
+  .dim-zone {
+    border: 1px solid rgba(127,119,221,.4);
+    border-radius:10px; padding:3.5rem 2rem;
+    cursor:pointer; background:var(--pp-bg);
+    display:flex; flex-direction:column; align-items:center; gap:18px;
+    min-height:220px; position:relative; overflow:hidden;
+    transition:background .15s, border-color .15s;
+  }
+  .dim-zone.dragover { background:var(--teal-bg); border-color:var(--teal); }
+  .dim-zone-grid { position:absolute; inset:0; pointer-events:none; }
+  .dim-zone-grid span {
+    position:absolute; background:rgba(127,119,221,.15);
+  }
+  .dim-zone-title { font-size:14px; font-weight:500; text-align:center; }
+  .dim-zone-sub { font-size:12px; color:#888; letter-spacing:.04em; }
+
+  /* tags */
+  .dim-tags { display:flex; gap:8px; flex-wrap:wrap; }
+  .dim-tag {
+    font-size:10px; letter-spacing:.08em; padding:2px 8px; border-radius:4px;
+    font-weight:500; background:rgba(127,119,221,.12);
+    color:var(--pp-txt); border:0.5px solid rgba(127,119,221,.3);
+  }
+
+  /* steps */
+  .dim-steps { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .dim-step {
+    border:0.5px solid #dee2e6; border-radius:6px; padding:10px 12px;
+  }
+  .dim-step-num { font-size:10px; letter-spacing:.1em; color:var(--pp); margin-bottom:3px; }
+  .dim-step-desc { font-size:12px; color:#888; }
+
+  /* stat cards */
+  .dim-stats { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+  .dim-stats.three { grid-template-columns:repeat(3,1fr); }
+  .dim-stat {
+    background:#f8f9fa; border:0.5px solid #dee2e6;
+    border-radius:8px; padding:14px 16px; text-align:center;
+  }
+  .dim-stat-label { font-size:10px; letter-spacing:.08em; margin-bottom:4px; color:#888; }
+  .dim-stat-val { font-size:22px; font-weight:500; }
+
+  /* hint */
+  .dim-hint {
+    font-size:11px; letter-spacing:.06em; color:#888;
+    border-left:2px solid var(--teal); padding-left:10px;
+  }
+
+  /* buttons */
+  .dim-btn {
+    background:rgba(127,119,221,.1); border:0.5px solid rgba(127,119,221,.5);
+    color:var(--pp-txt); border-radius:6px; padding:11px 0;
+    font-family:var(--bs-font-monospace); font-size:13px; font-weight:500;
+    cursor:pointer; letter-spacing:.04em; width:100%;
+    transition:background .15s, border-color .15s;
+  }
+  .dim-btn:hover { background:rgba(127,119,221,.2); border-color:var(--pp); }
+  .dim-btn:disabled { opacity:.5; cursor:not-allowed; }
+  .dim-btn-sec {
+    background:transparent; border:0.5px solid #dee2e6; color:#888;
+    border-radius:6px; padding:11px 20px;
+    font-family:var(--bs-font-monospace); font-size:13px; cursor:pointer;
+    transition:background .15s;
+  }
+  .dim-btn-sec:hover { background:#f8f9fa; }
+  .dim-row-btns { display:flex; gap:10px; }
+  .dim-row-btns .dim-btn { flex:1; }
+
+  /* progress */
+  .dim-prog-bar-wrap {
+    background:#e9ecef; border-radius:99px; height:4px; overflow:hidden;
+  }
+  .dim-prog-bar { height:100%; background:var(--pp); border-radius:99px; transition:width .4s; }
+  .dim-wav { display:flex; align-items:flex-end; gap:3px; height:40px; }
+  .dim-wav-col { flex:1; border-radius:2px; transition:height .08s; }
+
+  /* preview table */
+  .dim-table-wrap {
+    border:0.5px solid #dee2e6; border-radius:8px; overflow:hidden;
+  }
+  .dim-table-head {
+    padding:8px 12px; background:#f8f9fa;
+    border-bottom:0.5px solid #dee2e6;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .dim-table-head span:first-child { font-size:10px; letter-spacing:.1em; color:#888; }
+  .dim-table-head span:last-child { font-size:10px; color:var(--pp); }
+  .dim-table-scroll { overflow-x:auto; max-height:220px; }
+  .dim-table { width:100%; font-size:11px; border-collapse:collapse; }
+  .dim-table th {
+    padding:7px 10px; text-align:left; font-weight:500;
+    border-bottom:0.5px solid #dee2e6; white-space:nowrap;
+    color:#888; letter-spacing:.05em;
+  }
+  .dim-table td {
+    padding:6px 10px; white-space:nowrap; border-bottom:0.5px solid #dee2e6;
+    max-width:140px; overflow:hidden; text-overflow:ellipsis;
+  }
+  .dim-table td.num { color:var(--pp); }
+  .dim-table-footer {
+    padding:6px 12px; font-size:11px; color:#888;
+    border-top:0.5px solid #dee2e6; letter-spacing:.04em;
+  }
+
+  /* error */
+  .dim-error { font-size:13px; color:#dc3545; border-left:2px solid #dc3545; padding-left:10px; }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <h2><i class="fas fa-shopping-bag me-2" style="color:var(--accent)"></i>Bag Dimensions</h2>
-  <p>Upload a Philipp Plein product file, select the relevant dimension columns, and download a clean Excel.</p>
+  <p>Upload a Philipp Plein product file — the tool style-matches existing dimensions and uses AI to fill the rest.</p>
 </div>
 
-<!-- Upload -->
-<div class="card mb-4">
-  <div class="card-body">
-    <div class="section-label"><i class="fas fa-file-upload"></i> Upload Philipp Plein File</div>
-    <div class="upload-zone" id="uploadZone">
-      <i class="fas fa-shopping-bag"></i>
-      <p class="mb-1"><strong>Click to browse</strong> or drag &amp; drop</p>
-      <small>Accepts .xlsx / .xls files</small>
-      <input type="file" id="fileInput" class="d-none" accept=".xlsx,.xls">
-    </div>
-    <div id="fileInfo" class="mt-2 small text-muted d-none"></div>
+<div class="dim-wrap">
 
-    <div id="previewSection" class="mt-4 d-none">
-      <p class="text-success small mb-2">
-        <i class="fas fa-check-circle me-1"></i>File loaded successfully.
-      </p>
-      <div class="table-responsive mb-1">
-        <table class="table table-sm table-bordered preview-table" id="previewTable"></table>
+  <!-- Header bar -->
+  <div class="dim-header">
+    <div class="dim-dot" id="dimDot"></div>
+    <span class="dim-label">PHILIPP PLEIN — DIMENSION AI ENGINE</span>
+    <span class="dim-stage" id="dimStage">AWAITING INPUT</span>
+  </div>
+
+  <!-- STAGE: upload -->
+  <div id="stageUpload">
+    <div class="dim-tags mb-3">
+      <span class="dim-tag">style matching</span>
+      <span class="dim-tag">AI inference</span>
+      <span class="dim-tag">volume → liters</span>
+      <span class="dim-tag">xlsx output</span>
+    </div>
+
+    <label class="dim-zone mb-3" id="dimZone">
+      <div class="dim-zone-grid" id="dimGrid"></div>
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke-width="1.2" style="color:var(--pp)">
+        <path stroke="currentColor" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div style="text-align:center;z-index:1">
+        <div class="dim-zone-title" id="dimZoneTitle">drag &amp; drop excel file</div>
+        <div class="dim-zone-sub" id="dimZoneSub">or click to browse · .xlsx .xls</div>
       </div>
-      <small class="text-muted">Showing first 5 rows.</small>
+      <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none">
+    </label>
+
+    <div class="dim-steps">
+      <div class="dim-step"><div class="dim-step-num">step 01</div><div class="dim-step-desc">parse file</div></div>
+      <div class="dim-step"><div class="dim-step-num">step 02</div><div class="dim-step-desc">style match</div></div>
+      <div class="dim-step"><div class="dim-step-num">step 03</div><div class="dim-step-desc">AI estimate</div></div>
     </div>
   </div>
-</div>
 
-<!-- Column selector -->
-<div class="card mb-4 d-none" id="colCard">
-  <div class="card-body">
-    <div class="section-label"><i class="fas fa-columns"></i> Select Columns to Export</div>
-    <p class="text-muted small mb-3">
-      Tick all columns you want in the output file (e.g. product code, description, width, height, depth, weight).
-    </p>
-    <div id="colCheckboxes" class="row g-1 mb-4"></div>
-    <div class="d-flex gap-2">
-      <button class="btn btn-outline-secondary btn-sm" id="selectAllBtn">Select all</button>
-      <button class="btn btn-outline-secondary btn-sm" id="clearAllBtn">Clear all</button>
+  <!-- STAGE: preview -->
+  <div id="stagePreview" style="display:none">
+    <div style="border:0.5px solid rgba(127,119,221,.4);border-radius:8px;padding:12px 16px;background:var(--pp-bg);margin-bottom:1rem;">
+      <div style="font-size:10px;letter-spacing:.1em;color:var(--pp);margin-bottom:8px;">FILE ANALYSIS</div>
+      <div class="dim-stats">
+        <div class="dim-stat">
+          <div class="dim-stat-label">total rows</div>
+          <div class="dim-stat-val" id="statTotal">—</div>
+        </div>
+        <div class="dim-stat">
+          <div class="dim-stat-label" style="color:var(--pp-txt)">will be filled</div>
+          <div class="dim-stat-val" id="statToFill" style="color:var(--pp)">—</div>
+        </div>
+        <div class="dim-stat">
+          <div class="dim-stat-label">already filled — skip</div>
+          <div class="dim-stat-val" id="statFilled">—</div>
+        </div>
+        <div class="dim-stat">
+          <div class="dim-stat-label">no context — skip</div>
+          <div class="dim-stat-val" id="statNoCtx">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="dim-hint mb-3">output: only newly filled rows · volume in liters · all original columns preserved</div>
+    <div class="dim-row-btns">
+      <button class="dim-btn" id="runBtn">run inference ↗</button>
+      <button class="dim-btn-sec" id="resetBtn1">reset</button>
     </div>
   </div>
-</div>
 
-<!-- Export -->
-<div class="card mb-4 d-none" id="exportCard">
-  <div class="card-body">
-    <button class="btn btn-gold" id="exportBtn">
-      <i class="fas fa-file-download me-2"></i>Export Dimensions Excel
-    </button>
+  <!-- STAGE: processing -->
+  <div id="stageProcessing" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:1rem;">
+      <span style="font-size:11px;letter-spacing:.1em;color:var(--pp)">PROCESSING</span>
+      <span style="font-size:20px;font-weight:500;font-family:var(--bs-font-monospace)">
+        <span id="pctVal">0</span><span style="font-size:12px;color:#888">%</span>
+      </span>
+    </div>
+    <div class="dim-wav mb-3" id="dimWav"></div>
+    <div class="dim-prog-bar-wrap mb-2">
+      <div class="dim-prog-bar" id="progBar" style="width:0%"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;letter-spacing:.06em;">
+      <span style="color:#888" id="progRows">0 / 0 rows</span>
+      <span style="color:var(--teal)" id="progPhase">style matching…<span style="animation:blink 1s infinite">_</span></span>
+    </div>
   </div>
-</div>
 
-<div class="card d-none" id="resultCard">
-  <div class="card-body" id="resultBody"></div>
-</div>
+  <!-- STAGE: done -->
+  <div id="stageDone" style="display:none">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;">
+      <div style="width:6px;height:6px;border-radius:50%;background:var(--teal)"></div>
+      <span style="font-size:11px;letter-spacing:.1em;color:var(--teal)">INFERENCE COMPLETE</span>
+    </div>
+    <div class="dim-stats three mb-3">
+      <div class="dim-stat">
+        <div class="dim-stat-label" style="color:var(--teal-txt)">rows filled</div>
+        <div class="dim-stat-val" id="doneRows" style="color:var(--teal)">—</div>
+      </div>
+      <div class="dim-stat">
+        <div class="dim-stat-label" style="color:var(--pp-txt)">no context skip</div>
+        <div class="dim-stat-val" id="doneNoCtx" style="color:var(--pp)">—</div>
+      </div>
+      <div class="dim-stat">
+        <div class="dim-stat-label" style="color:var(--pp-txt)">had dims skip</div>
+        <div class="dim-stat-val" id="doneHadDims" style="color:var(--pp)">—</div>
+      </div>
+    </div>
+
+    <div class="dim-table-wrap mb-3">
+      <div class="dim-table-head">
+        <span>OUTPUT PREVIEW</span>
+        <span>vol. in liters</span>
+      </div>
+      <div class="dim-table-scroll">
+        <table class="dim-table">
+          <thead>
+            <tr>
+              <th>SKU</th><th>CATEGORY</th><th>MICROCATEGORY</th>
+              <th>length</th><th>width</th><th>height</th><th>volume</th>
+            </tr>
+          </thead>
+          <tbody id="previewBody"></tbody>
+        </table>
+      </div>
+      <div class="dim-table-footer" id="previewFooter" style="display:none"></div>
+    </div>
+
+    <div class="dim-row-btns">
+      <button class="dim-btn" id="dlBtn">download excel ↗</button>
+      <button class="dim-btn-sec" id="resetBtn2">reset</button>
+    </div>
+  </div>
+
+  <!-- STAGE: error -->
+  <div id="stageError" style="display:none">
+    <div class="dim-error mb-3" id="errMsg"></div>
+    <button class="dim-btn-sec" id="resetBtn3">try again</button>
+  </div>
+
+</div><!-- /.dim-wrap -->
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
-const zone    = document.getElementById('uploadZone');
-const input   = document.getElementById('fileInput');
-const fileInfo= document.getElementById('fileInfo');
-let ppFile = null;
-let allCols = [];
+/* ── state ─────────────────────────────────────────────── */
+let allRows = [], headers = [], completedRows = [], skippedCount = 0, alreadyFilledCount = 0;
+let progDone = 0, progTotal = 0;
+let wavTick = 0, wavTimer = null;
 
-zone.addEventListener('click', () => input.click());
-zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('dragover'); });
-zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+/* ── DOM refs ───────────────────────────────────────────── */
+const stages = {
+  upload:     document.getElementById('stageUpload'),
+  preview:    document.getElementById('stagePreview'),
+  processing: document.getElementById('stageProcessing'),
+  done:       document.getElementById('stageDone'),
+  error:      document.getElementById('stageError'),
+};
+const dimDot   = document.getElementById('dimDot');
+const dimStage = document.getElementById('dimStage');
+
+function showStage(name) {
+  Object.values(stages).forEach(el => el.style.display = 'none');
+  stages[name].style.display = '';
+  const labels = { upload:'AWAITING INPUT', preview:'READY', processing:'PROCESSING', done:'COMPLETE', error:'ERROR' };
+  dimStage.textContent = labels[name] || '';
+  dimDot.className = 'dim-dot' + (name === 'processing' ? ' active' : '');
+  if (name === 'processing') startWav(); else stopWav();
+}
+
+/* ── grid overlay ───────────────────────────────────────── */
+const grid = document.getElementById('dimGrid');
+for (let i = 1; i < 4; i++) {
+  const v = document.createElement('span');
+  v.style.cssText = `left:${i*25}%;top:0;width:.5px;height:100%`;
+  grid.appendChild(v);
+  const h = document.createElement('span');
+  h.style.cssText = `top:${i*25}%;left:0;width:100%;height:.5px`;
+  grid.appendChild(h);
+}
+
+/* ── waveform animation ─────────────────────────────────── */
+const wav = document.getElementById('dimWav');
+const WAV_COLS = 20;
+for (let i = 0; i < WAV_COLS; i++) {
+  const d = document.createElement('div');
+  d.className = 'dim-wav-col';
+  wav.appendChild(d);
+}
+function startWav() {
+  wavTimer = setInterval(() => {
+    wavTick++;
+    const pct = progTotal > 0 ? progDone / progTotal : 0;
+    Array.from(wav.children).forEach((col, i) => {
+      const h = 8 + Math.abs(Math.sin((i + wavTick * 0.3) * 0.7)) * 24;
+      col.style.height = h + 'px';
+      col.style.background = i / WAV_COLS < pct ? 'var(--pp)' : 'rgba(127,119,221,.25)';
+    });
+  }, 80);
+}
+function stopWav() { clearInterval(wavTimer); wavTimer = null; }
+
+/* ── file upload ────────────────────────────────────────── */
+const zone  = document.getElementById('dimZone');
+const input = document.getElementById('fileInput');
+const zoneTitle = document.getElementById('dimZoneTitle');
+const zoneSub   = document.getElementById('dimZoneSub');
+
+zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('dragover'); zoneTitle.textContent = 'release to upload'; });
+zone.addEventListener('dragleave', () => { zone.classList.remove('dragover'); zoneTitle.textContent = 'drag & drop excel file'; });
 zone.addEventListener('drop', e => {
   e.preventDefault(); zone.classList.remove('dragover');
-  if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+  zoneTitle.textContent = 'drag & drop excel file';
+  if (e.dataTransfer.files[0]) uploadFile(e.dataTransfer.files[0]);
 });
-input.addEventListener('change', () => { if (input.files[0]) loadFile(input.files[0]); });
+zone.addEventListener('click', () => input.click());
+input.addEventListener('change', () => { if (input.files[0]) uploadFile(input.files[0]); });
 
-async function loadFile(f) {
-  ppFile = f;
-  fileInfo.textContent = `Selected: ${f.name}  (${(f.size/1024).toFixed(1)} KB)`;
-  fileInfo.classList.remove('d-none');
-
+async function uploadFile(file) {
+  zoneSub.textContent = 'parsing…';
   const fd = new FormData();
-  fd.append('file', f);
+  fd.append('file', file);
   try {
-    const res  = await fetch('/bag-dimensions/preview-columns', { method: 'POST', body: fd });
+    const res  = await fetch('/bag-dimensions/upload', { method: 'POST', body: fd });
     const data = await res.json();
-    if (data.error) { alert(data.error); return; }
+    if (data.error) { showError(data.error); return; }
 
-    allCols = data.columns;
+    headers           = data.headers;
+    allRows           = data.rows;
+    alreadyFilledCount = data.stats.already_filled;
+    skippedCount      = data.stats.no_context;
 
-    // Preview table
-    const tbl = document.getElementById('previewTable');
-    tbl.innerHTML = '';
-    const thead = tbl.createTHead().insertRow();
-    allCols.forEach(c => { const th = document.createElement('th'); th.textContent = c; thead.appendChild(th); });
-    const tbody = tbl.createTBody();
-    data.preview.forEach(row => {
-      const tr = tbody.insertRow();
-      allCols.forEach(c => { const td = tr.insertCell(); td.textContent = row[c] ?? ''; });
-    });
-    document.getElementById('previewSection').classList.remove('d-none');
-
-    // Checkboxes
-    const box = document.getElementById('colCheckboxes');
-    box.innerHTML = '';
-    allCols.forEach(c => {
-      const div = document.createElement('div');
-      div.className = 'col-md-3 col-sm-4 col-6';
-      div.innerHTML = `<div class="form-check">
-        <input class="form-check-input col-check" type="checkbox" value="${c}" id="col_${c}" checked>
-        <label class="form-check-label" for="col_${c}" style="font-size:.82rem">${c}</label>
-      </div>`;
-      box.appendChild(div);
-    });
-
-    document.getElementById('colCard').classList.remove('d-none');
-    document.getElementById('exportCard').classList.remove('d-none');
-  } catch(err) {
-    alert('Could not read file: ' + err.message);
+    document.getElementById('statTotal').textContent  = data.stats.total;
+    document.getElementById('statToFill').textContent = data.stats.to_fill;
+    document.getElementById('statFilled').textContent = data.stats.already_filled;
+    document.getElementById('statNoCtx').textContent  = data.stats.no_context;
+    showStage('preview');
+  } catch (err) {
+    showError('Could not parse file: ' + err.message);
   }
 }
 
-document.getElementById('selectAllBtn').addEventListener('click', () =>
-  document.querySelectorAll('.col-check').forEach(cb => cb.checked = true));
-document.getElementById('clearAllBtn').addEventListener('click', () =>
-  document.querySelectorAll('.col-check').forEach(cb => cb.checked = false));
+/* ── helpers ────────────────────────────────────────────── */
+function hasAllDims(r) {
+  return ['length','width','height','volume'].every(k => r[k] !== null && r[k] !== undefined && String(r[k]).trim() !== '');
+}
+function hasContext(r) {
+  return ['CATEGORY_NAME','MICROCATEGORY_NAME','TITLE'].every(k => String(r[k]||'').trim() !== '');
+}
+function getStyle(sku) {
+  const p = String(sku||'').split('-');
+  return p.length >= 2 ? p[1] : '';
+}
+function setProgress(done, total) {
+  progDone = done; progTotal = total;
+  const pct = total > 0 ? Math.round(done / total * 100) : 0;
+  document.getElementById('pctVal').textContent   = pct;
+  document.getElementById('progBar').style.width  = pct + '%';
+  document.getElementById('progRows').textContent = `${done} / ${total} rows`;
+  document.getElementById('progPhase').innerHTML  =
+    (pct < 40 ? 'style matching…' : pct < 85 ? 'AI inference…' : 'finalizing…') +
+    '<span style="animation:blink 1s infinite">_</span>';
+}
 
-document.getElementById('exportBtn').addEventListener('click', async () => {
-  if (!ppFile) { alert('Upload a file first.'); return; }
-  const selected = [...document.querySelectorAll('.col-check:checked')].map(cb => cb.value);
-  if (!selected.length) { alert('Select at least one column.'); return; }
+/* ── run inference ──────────────────────────────────────── */
+document.getElementById('runBtn').addEventListener('click', runInference);
 
-  const btn = document.getElementById('exportBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner me-2"></span>Exporting…';
+async function runInference() {
+  showStage('processing');
 
-  const fd = new FormData();
-  fd.append('file', ppFile);
-  selected.forEach(c => fd.append('columns', c));
-
-  try {
-    const res = await fetch('/bag-dimensions/export', { method: 'POST', body: fd });
-    if (res.ok) {
-      const rows = res.headers.get('X-Row-Count') || '?';
-      const blob = await res.blob();
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href = url;
-      a.download = ppFile.name.replace(/\.[^.]+$/, '') + '_dimensions.xlsx';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      showResult('success', `<i class="fas fa-check-circle me-2"></i>Exported <strong>${rows} rows</strong> with <strong>${selected.length} columns</strong>. Download started.`);
-    } else {
-      const data = await res.json().catch(() => ({ error: 'Unknown error' }));
-      showResult('danger', `<i class="fas fa-exclamation-circle me-2"></i>${data.error}`);
+  // Build style→dims map from rows that already have dims
+  const styleDimMap = {};
+  for (const row of allRows) {
+    if (hasAllDims(row)) {
+      const s = getStyle(row.SKU);
+      if (s) styleDimMap[s] = { length: row.length, width: row.width, height: row.height, volume: row.volume };
     }
-  } catch(err) {
-    showResult('danger', err.message);
+  }
+
+  const toProcess = allRows.filter(r => !hasAllDims(r) && hasContext(r));
+  setProgress(0, toProcess.length);
+
+  // First pass: style matching
+  const fromStyle = [], stillNeeds = [];
+  for (const row of toProcess) {
+    const s = getStyle(row.SKU);
+    if (s && styleDimMap[s]) fromStyle.push({ ...row, ...styleDimMap[s] });
+    else stillNeeds.push(row);
+  }
+  // Register newly style-matched dims
+  for (const row of fromStyle) {
+    const s = getStyle(row.SKU);
+    if (s && !styleDimMap[s]) styleDimMap[s] = { length: row.length, width: row.width, height: row.height, volume: row.volume };
+  }
+  setProgress(fromStyle.length, toProcess.length);
+
+  // Second pass: batched AI inference
+  const aiResults = [];
+  const BATCH = 20;
+  for (let i = 0; i < stillNeeds.length; i += BATCH) {
+    const batch = stillNeeds.slice(i, i + BATCH);
+
+    // Within each batch, re-check style map (might have been filled by earlier batches)
+    const batchAI = [], batchStyle = [];
+    for (const row of batch) {
+      const s = getStyle(row.SKU);
+      if (s && styleDimMap[s]) batchStyle.push({ ...row, ...styleDimMap[s] });
+      else batchAI.push(row);
+    }
+    for (const row of batchStyle) {
+      aiResults.push(row);
+      const s = getStyle(row.SKU);
+      if (s && !styleDimMap[s]) styleDimMap[s] = { length: row.length, width: row.width, height: row.height, volume: row.volume };
+    }
+
+    if (batchAI.length > 0) {
+      try {
+        const res  = await fetch('/bag-dimensions/infer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ batch: batchAI }),
+        });
+        const data = await res.json();
+        if (data.error) { showError(data.error); return; }
+        for (const row of data.results) {
+          aiResults.push(row);
+          const s = getStyle(row.SKU);
+          if (s && !styleDimMap[s]) styleDimMap[s] = { length: row.length, width: row.width, height: row.height, volume: row.volume };
+        }
+      } catch (err) {
+        // on network error, push originals (no dims) — they'll be omitted from output
+        for (const row of batchAI) aiResults.push(row);
+      }
+    }
+    setProgress(fromStyle.length + Math.min(i + BATCH, stillNeeds.length), toProcess.length);
+  }
+
+  completedRows = [...fromStyle, ...aiResults].filter(hasAllDims);
+
+  // Populate done stage
+  document.getElementById('doneRows').textContent    = completedRows.length;
+  document.getElementById('doneNoCtx').textContent   = skippedCount;
+  document.getElementById('doneHadDims').textContent = alreadyFilledCount;
+
+  const tbody = document.getElementById('previewBody');
+  tbody.innerHTML = '';
+  const preview = completedRows.slice(0, 50);
+  for (const row of preview) {
+    const tr = document.createElement('tr');
+    ['SKU','CATEGORY_NAME','MICROCATEGORY_NAME','length','width','height','volume'].forEach((k, j) => {
+      const td = document.createElement('td');
+      td.textContent = row[k] ?? '';
+      if (j >= 3) td.className = 'num';
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  }
+  if (completedRows.length > 50) {
+    const f = document.getElementById('previewFooter');
+    f.textContent = `showing 50 of ${completedRows.length} rows`;
+    f.style.display = '';
+  }
+
+  showStage('done');
+}
+
+/* ── download ───────────────────────────────────────────── */
+document.getElementById('dlBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('dlBtn');
+  btn.disabled = true; btn.textContent = 'preparing…';
+  try {
+    const res = await fetch('/bag-dimensions/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ headers, rows: completedRows }),
+    });
+    if (!res.ok) { const d = await res.json(); showError(d.error || 'Download failed'); return; }
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'philipp_plein_dimensions_filled.xlsx';
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+  } catch (err) {
+    showError('Download failed: ' + err.message);
   } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-file-download me-2"></i>Export Dimensions Excel';
+    btn.disabled = false; btn.textContent = 'download excel ↗';
   }
 });
 
-function showResult(type, html) {
-  const card = document.getElementById('resultCard');
-  document.getElementById('resultBody').innerHTML = `<div class="alert alert-${type} mb-0">${html}</div>`;
-  card.classList.remove('d-none');
+/* ── reset ──────────────────────────────────────────────── */
+function reset() {
+  allRows = []; headers = []; completedRows = []; skippedCount = 0; alreadyFilledCount = 0;
+  progDone = 0; progTotal = 0;
+  input.value = '';
+  zoneSub.textContent = 'or click to browse · .xlsx .xls';
+  document.getElementById('previewBody').innerHTML = '';
+  document.getElementById('previewFooter').style.display = 'none';
+  showStage('upload');
 }
+['resetBtn1','resetBtn2','resetBtn3'].forEach(id =>
+  document.getElementById(id).addEventListener('click', reset));
+
+/* ── error ──────────────────────────────────────────────── */
+function showError(msg) {
+  document.getElementById('errMsg').textContent = msg;
+  showStage('error');
+}
+
+/* ── init ───────────────────────────────────────────────── */
+showStage('upload');
 </script>
 {% endblock %}
