@@ -72,6 +72,19 @@ def upload():
     try:
         df = pd.read_excel(BytesIO(file.read()))
 
+        # Normalise column names to internal names
+        COL_MAP = {
+            # dimensions
+            "Length (cm)":      "length",
+            "Width/Depth (cm)": "width",
+            "Height (cm)":      "height",
+            "Volume, L":        "volume",
+            # context
+            "CATEGORY":         "CATEGORY_NAME",
+            "MICROCATEGORY":    "MICROCATEGORY_NAME",
+        }
+        df.rename(columns=COL_MAP, inplace=True)
+
         if "SKU" not in df.columns:
             return jsonify({"error": "File must include a SKU column"}), 400
 
@@ -172,7 +185,17 @@ def download():
         return jsonify({"error": "No rows to export"}), 400
 
     try:
-        df = pd.DataFrame([{h: r.get(h, "") for h in headers} for r in rows])
+        # Restore original column names before writing
+        REVERSE_MAP = {
+            "length":         "Length (cm)",
+            "width":          "Width/Depth (cm)",
+            "height":         "Height (cm)",
+            "volume":         "Volume, L",
+            "CATEGORY_NAME":  "CATEGORY",
+            "MICROCATEGORY_NAME": "MICROCATEGORY",
+        }
+        out_headers = [REVERSE_MAP.get(h, h) for h in headers]
+        df = pd.DataFrame([{REVERSE_MAP.get(h, h): r.get(h, "") for h in headers} for r in rows])
         buf = BytesIO()
         df.to_excel(buf, index=False)
         xlsx_bytes = buf.getvalue()
