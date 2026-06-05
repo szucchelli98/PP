@@ -379,8 +379,8 @@ function parseFile(file) {
       // Normalise column names
       const rawHeaders = Object.keys(raw[0]);
       headers = rawHeaders.map(h => COL_MAP[h] || h);
-      allRows = raw.map(row => {
-        const r = {};
+      allRows = raw.map((row, idx) => {
+        const r = { __idx: idx };
         rawHeaders.forEach(h => { r[COL_MAP[h] || h] = row[h] === '' ? null : row[h]; });
         // Ensure dim columns exist
         ['length','width','height','volume'].forEach(k => { if (!(k in r)) r[k] = null; });
@@ -492,7 +492,13 @@ async function runInference() {
     setProgress(fromStyle.length + Math.min(i + BATCH, stillNeeds.length), toProcess.length);
   }
 
-  completedRows = [...fromStyle, ...aiResults].filter(hasAllDims);
+  // Merge newly filled rows back into the full dataset in original order
+  const filledMap = {};
+  [...fromStyle, ...aiResults].filter(hasAllDims).forEach(r => { filledMap[r.__idx] = r; });
+  completedRows = allRows
+    .map(r => filledMap[r.__idx] !== undefined ? filledMap[r.__idx] : r)
+    .filter(hasAllDims)
+    .map(r => { const c = {...r}; delete c.__idx; return c; });
 
   document.getElementById('doneRows').textContent    = completedRows.length;
   document.getElementById('doneNoCtx').textContent   = skippedCount;
@@ -522,8 +528,9 @@ async function runInference() {
 document.getElementById('dlBtn').addEventListener('click', () => {
   try {
     // Restore original column names for output
-    const outHeaders = headers.map(h => COL_MAP_REV[h] || h);
-    const wsData = [outHeaders, ...completedRows.map(r => headers.map(h => r[h] ?? ''))];
+    const cleanHeaders = headers.filter(h => h !== '__idx');
+    const outHeaders = cleanHeaders.map(h => COL_MAP_REV[h] || h);
+    const wsData = [outHeaders, ...completedRows.map(r => cleanHeaders.map(h => r[h] ?? ''))];
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Dimensions');
