@@ -343,7 +343,9 @@ function runExport() {
 
     for (let i = 1; i < sheetData.length; i++) {
       const row   = sheetData[i];
-      const price = toNum(row[priceIdx]);
+      const rawPrice = row[priceIdx];
+      if (rawPrice === null || rawPrice === '' || isNaN(parseFloat(rawPrice))) continue;
+      const price = toNum(rawPrice);
       const disc  = toNum(row[discIdx]);
 
       let final;
