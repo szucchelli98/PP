@@ -359,8 +359,20 @@ async function uploadFile(file) {
   const fd = new FormData();
   fd.append('file', file);
   try {
-    const res  = await fetch('/bag-dimensions/upload', { method: 'POST', body: fd });
-    const data = await res.json();
+    let res;
+    try {
+      res = await fetch('/bag-dimensions/upload', { method: 'POST', body: fd });
+    } catch (netErr) {
+      showError('Network error — could not reach server. Detail: ' + netErr.message);
+      return;
+    }
+    let data;
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      showError('Server returned status ' + res.status + ' but response was not JSON.');
+      return;
+    }
     if (data.error) { showError(data.error); return; }
 
     headers           = data.headers;
