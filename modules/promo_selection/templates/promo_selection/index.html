@@ -186,6 +186,11 @@ const LICENCE_CATEGORIES = [
 ];
 
 const DISCOUNT_SUFFIX = ' discount';
+const EXCLUDED_CHANNELS = new Set([
+  'billionaire','dosCh','dosEu','dosRu','dosUs',
+  'outletAmerica','outletApac','outletCh','outletEu','outletRu','outletUs',
+  'secretoutlet'
+]);
 const STOCK_COLUMNS   = [
   'TOTAL STOCK (ALL REGIONS)','EU STOCK','US STOCK','RU STOCK','ASIA STOCK',
   'AMERICAS STOCK','ITG STOCK','SPEDIMEX STOCK','EU DOS STOCK','DISPLAY ZONE STOCK'
@@ -217,7 +222,8 @@ function handleFile(file) {
 
       const headers  = sheetData[0];
       const channels = headers.filter(h => typeof h === 'string' && h.toLowerCase().endsWith(DISCOUNT_SUFFIX))
-                               .map(h => h.slice(0, -DISCOUNT_SUFFIX.length));
+                               .map(h => h.slice(0, -DISCOUNT_SUFFIX.length))
+                               .filter(ch => !EXCLUDED_CHANNELS.has(ch));
       const stockCols = STOCK_COLUMNS.filter(c => headers.includes(c));
 
       const catIdx   = headers.indexOf('CATEGORY');
