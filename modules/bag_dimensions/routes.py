@@ -35,9 +35,10 @@ def _has_all_dims(row: dict) -> bool:
 
 
 def _has_context(row: dict) -> bool:
+    # TITLE is optional — only CATEGORY_NAME and MICROCATEGORY_NAME are required
     return all(
         str(row.get(k, "")).strip() != ""
-        for k in ("CATEGORY_NAME", "MICROCATEGORY_NAME", "TITLE")
+        for k in ("CATEGORY_NAME", "MICROCATEGORY_NAME")
     )
 
 
