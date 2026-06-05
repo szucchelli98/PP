@@ -2,6 +2,7 @@
 {% block title %}Bag Dimensions – Marketplace Tool{% endblock %}
 
 {% block extra_head %}
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
   :root {
     --pp: #7F77DD;
@@ -281,6 +282,17 @@
 
 {% block extra_scripts %}
 <script>
+/* ── Column name mapping (file → internal) ──────────────── */
+const COL_MAP = {
+  'Length (cm)':      'length',
+  'Width/Depth (cm)': 'width',
+  'Height (cm)':      'height',
+  'Volume, L':        'volume',
+  'CATEGORY':         'CATEGORY_NAME',
+  'MICROCATEGORY':    'MICROCATEGORY_NAME',
+};
+const COL_MAP_REV = Object.fromEntries(Object.entries(COL_MAP).map(([k,v]) => [v,k]));
+
 /* ── state ─────────────────────────────────────────────── */
 let allRows = [], headers = [], completedRows = [], skippedCount = 0, alreadyFilledCount = 0;
 let progDone = 0, progTotal = 0;
@@ -338,7 +350,7 @@ function startWav() {
 }
 function stopWav() { clearInterval(wavTimer); wavTimer = null; }
 
-/* ── file upload ────────────────────────────────────────── */
+/* ── file parsing (client-side via SheetJS) ─────────────── */
 const zone  = document.getElementById('dimZone');
 const input = document.getElementById('fileInput');
 const zoneTitle = document.getElementById('dimZoneTitle');
@@ -349,45 +361,48 @@ zone.addEventListener('dragleave', () => { zone.classList.remove('dragover'); zo
 zone.addEventListener('drop', e => {
   e.preventDefault(); zone.classList.remove('dragover');
   zoneTitle.textContent = 'drag & drop excel file';
-  if (e.dataTransfer.files[0]) uploadFile(e.dataTransfer.files[0]);
+  if (e.dataTransfer.files[0]) parseFile(e.dataTransfer.files[0]);
 });
-zone.addEventListener('click', () => input.click());
-input.addEventListener('change', () => { if (input.files[0]) uploadFile(input.files[0]); });
+zone.addEventListener('click', e => { e.preventDefault(); input.click(); });
+input.addEventListener('change', () => { if (input.files[0]) parseFile(input.files[0]); });
 
-async function uploadFile(file) {
+function parseFile(file) {
   zoneSub.textContent = 'parsing…';
-  const fd = new FormData();
-  fd.append('file', file);
-  try {
-    let res;
+  const reader = new FileReader();
+  reader.onload = ev => {
     try {
-      res = await fetch('/bag-dimensions/upload', { method: 'POST', body: fd });
-    } catch (netErr) {
-      showError('Network error — could not reach server. Detail: ' + netErr.message);
-      return;
-    }
-    let data;
-    try {
-      data = await res.json();
-    } catch (parseErr) {
-      showError('Server returned status ' + res.status + ' but response was not JSON.');
-      return;
-    }
-    if (data.error) { showError(data.error); return; }
+      const wb   = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const raw  = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      if (!raw.length) { showError('File is empty.'); return; }
 
-    headers           = data.headers;
-    allRows           = data.rows;
-    alreadyFilledCount = data.stats.already_filled;
-    skippedCount      = data.stats.no_context;
+      // Normalise column names
+      const rawHeaders = Object.keys(raw[0]);
+      headers = rawHeaders.map(h => COL_MAP[h] || h);
+      allRows = raw.map(row => {
+        const r = {};
+        rawHeaders.forEach(h => { r[COL_MAP[h] || h] = row[h] === '' ? null : row[h]; });
+        // Ensure dim columns exist
+        ['length','width','height','volume'].forEach(k => { if (!(k in r)) r[k] = null; });
+        return r;
+      });
 
-    document.getElementById('statTotal').textContent  = data.stats.total;
-    document.getElementById('statToFill').textContent = data.stats.to_fill;
-    document.getElementById('statFilled').textContent = data.stats.already_filled;
-    document.getElementById('statNoCtx').textContent  = data.stats.no_context;
-    showStage('preview');
-  } catch (err) {
-    showError('Could not parse file: ' + err.message);
-  }
+      if (!headers.includes('SKU')) { showError('File must include a SKU column.'); return; }
+
+      alreadyFilledCount = allRows.filter(hasAllDims).length;
+      const toFill       = allRows.filter(r => !hasAllDims(r) && hasContext(r)).length;
+      skippedCount       = allRows.filter(r => !hasAllDims(r) && !hasContext(r)).length;
+
+      document.getElementById('statTotal').textContent  = allRows.length;
+      document.getElementById('statToFill').textContent = toFill;
+      document.getElementById('statFilled').textContent = alreadyFilledCount;
+      document.getElementById('statNoCtx').textContent  = skippedCount;
+      showStage('preview');
+    } catch(err) {
+      showError('Could not parse file: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 /* ── helpers ────────────────────────────────────────────── */
@@ -395,7 +410,7 @@ function hasAllDims(r) {
   return ['length','width','height','volume'].every(k => r[k] !== null && r[k] !== undefined && String(r[k]).trim() !== '');
 }
 function hasContext(r) {
-  return ['CATEGORY_NAME','MICROCATEGORY_NAME','TITLE'].every(k => String(r[k]||'').trim() !== '');
+  return ['CATEGORY_NAME','MICROCATEGORY_NAME'].every(k => String(r[k]||'').trim() !== '');
 }
 function getStyle(sku) {
   const p = String(sku||'').split('-');
@@ -418,7 +433,6 @@ document.getElementById('runBtn').addEventListener('click', runInference);
 async function runInference() {
   showStage('processing');
 
-  // Build style→dims map from rows that already have dims
   const styleDimMap = {};
   for (const row of allRows) {
     if (hasAllDims(row)) {
@@ -430,27 +444,22 @@ async function runInference() {
   const toProcess = allRows.filter(r => !hasAllDims(r) && hasContext(r));
   setProgress(0, toProcess.length);
 
-  // First pass: style matching
   const fromStyle = [], stillNeeds = [];
   for (const row of toProcess) {
     const s = getStyle(row.SKU);
     if (s && styleDimMap[s]) fromStyle.push({ ...row, ...styleDimMap[s] });
     else stillNeeds.push(row);
   }
-  // Register newly style-matched dims
   for (const row of fromStyle) {
     const s = getStyle(row.SKU);
     if (s && !styleDimMap[s]) styleDimMap[s] = { length: row.length, width: row.width, height: row.height, volume: row.volume };
   }
   setProgress(fromStyle.length, toProcess.length);
 
-  // Second pass: batched AI inference
   const aiResults = [];
   const BATCH = 20;
   for (let i = 0; i < stillNeeds.length; i += BATCH) {
     const batch = stillNeeds.slice(i, i + BATCH);
-
-    // Within each batch, re-check style map (might have been filled by earlier batches)
     const batchAI = [], batchStyle = [];
     for (const row of batch) {
       const s = getStyle(row.SKU);
@@ -462,7 +471,6 @@ async function runInference() {
       const s = getStyle(row.SKU);
       if (s && !styleDimMap[s]) styleDimMap[s] = { length: row.length, width: row.width, height: row.height, volume: row.volume };
     }
-
     if (batchAI.length > 0) {
       try {
         const res  = await fetch('/bag-dimensions/infer', {
@@ -478,7 +486,6 @@ async function runInference() {
           if (s && !styleDimMap[s]) styleDimMap[s] = { length: row.length, width: row.width, height: row.height, volume: row.volume };
         }
       } catch (err) {
-        // on network error, push originals (no dims) — they'll be omitted from output
         for (const row of batchAI) aiResults.push(row);
       }
     }
@@ -487,15 +494,13 @@ async function runInference() {
 
   completedRows = [...fromStyle, ...aiResults].filter(hasAllDims);
 
-  // Populate done stage
   document.getElementById('doneRows').textContent    = completedRows.length;
   document.getElementById('doneNoCtx').textContent   = skippedCount;
   document.getElementById('doneHadDims').textContent = alreadyFilledCount;
 
   const tbody = document.getElementById('previewBody');
   tbody.innerHTML = '';
-  const preview = completedRows.slice(0, 50);
-  for (const row of preview) {
+  completedRows.slice(0, 50).forEach(row => {
     const tr = document.createElement('tr');
     ['SKU','CATEGORY_NAME','MICROCATEGORY_NAME','length','width','height','volume'].forEach((k, j) => {
       const td = document.createElement('td');
@@ -504,37 +509,33 @@ async function runInference() {
       tr.appendChild(td);
     });
     tbody.appendChild(tr);
-  }
+  });
   if (completedRows.length > 50) {
     const f = document.getElementById('previewFooter');
     f.textContent = `showing 50 of ${completedRows.length} rows`;
     f.style.display = '';
   }
-
   showStage('done');
 }
 
-/* ── download ───────────────────────────────────────────── */
-document.getElementById('dlBtn').addEventListener('click', async () => {
-  const btn = document.getElementById('dlBtn');
-  btn.disabled = true; btn.textContent = 'preparing…';
+/* ── download (client-side via SheetJS) ─────────────────── */
+document.getElementById('dlBtn').addEventListener('click', () => {
   try {
-    const res = await fetch('/bag-dimensions/download', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ headers, rows: completedRows }),
-    });
-    if (!res.ok) { const d = await res.json(); showError(d.error || 'Download failed'); return; }
-    const blob = await res.blob();
+    // Restore original column names for output
+    const outHeaders = headers.map(h => COL_MAP_REV[h] || h);
+    const wsData = [outHeaders, ...completedRows.map(r => headers.map(h => r[h] ?? ''))];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Dimensions');
+    const buf  = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href = url; a.download = 'philipp_plein_dimensions_filled.xlsx';
     document.body.appendChild(a); a.click();
     setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
-  } catch (err) {
+  } catch(err) {
     showError('Download failed: ' + err.message);
-  } finally {
-    btn.disabled = false; btn.textContent = 'download excel ↗';
   }
 });
 
@@ -557,7 +558,6 @@ function showError(msg) {
   showStage('error');
 }
 
-/* ── init ───────────────────────────────────────────────── */
 showStage('upload');
 </script>
 {% endblock %}
