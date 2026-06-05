@@ -345,8 +345,10 @@ function runExport() {
       const row   = sheetData[i];
       const rawPrice = row[priceIdx];
       if (rawPrice === null || rawPrice === '' || isNaN(parseFloat(rawPrice))) continue;
+      const rawDisc = row[discIdx];
+      if (rawDisc === null || rawDisc === '' || (typeof rawDisc === 'string' && rawDisc.trim() === '')) continue;
       const price = toNum(rawPrice);
-      const disc  = toNum(row[discIdx]);
+      const disc  = toNum(rawDisc);
 
       let final;
       if (adjType === 'new_discount' && adjValue !== null)
