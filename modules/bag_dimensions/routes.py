@@ -72,10 +72,13 @@ def upload():
     try:
         df = pd.read_excel(BytesIO(file.read()))
 
-        required = {"SKU", "length", "width", "height", "volume"}
-        missing = required - set(df.columns)
-        if missing:
-            return jsonify({"error": f"File must include columns: {', '.join(sorted(missing))}"}), 400
+        if "SKU" not in df.columns:
+            return jsonify({"error": "File must include a SKU column"}), 400
+
+        # Add dimension columns if they don't exist yet
+        for col in ("length", "width", "height", "volume"):
+            if col not in df.columns:
+                df[col] = None
 
         headers = df.columns.tolist()
         rows = [
