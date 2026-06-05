@@ -86,11 +86,11 @@
           <select id="channelSelect" class="form-select"></select>
         </div>
         <div class="col-sm-4">
-          <label class="form-label small fw-semibold">Adjustment type</label>
+          <label class="form-label small fw-semibold">Type of discount</label>
           <select id="adjustmentType" class="form-select" onchange="toggleAdjValue()">
             <option value="none">No adjustment</option>
             <option value="extra_discount">Extra discount on top</option>
-            <option value="new_discount">Override to new discount</option>
+            <option value="increase_discount">Increase channel discount by</option>
           </select>
         </div>
         <div class="col-sm-2" id="adjValueCol" style="display:none;">
@@ -356,10 +356,10 @@ function runExport() {
       const disc  = toNum(rawDisc);
 
       let final;
-      if (adjType === 'new_discount' && adjValue !== null)
-        final = price * (1 - adjValue / 100);
+      if (adjType === 'increase_discount' && adjValue !== null)
+        final = price * (1 - (disc + adjValue) / 100);  // e.g. 50% + 10% = 60%
       else if (adjType === 'extra_discount' && adjValue !== null)
-        final = price * (1 - disc / 100) * (1 - adjValue / 100);
+        final = price * (1 - disc / 100) * (1 - adjValue / 100);  // extra % on already-discounted price
       else
         final = price * (1 - disc / 100);
       final = Math.round(final * 100) / 100;
