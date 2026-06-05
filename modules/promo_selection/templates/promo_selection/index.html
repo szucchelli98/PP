@@ -159,8 +159,15 @@
       </div>
 
       <div id="microSection" class="mt-4" style="display:none;">
-        <div class="small fw-semibold mb-2">Microcategories</div>
-        <div class="pill-group" id="microPills"></div>
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <span class="small fw-semibold">Microcategories</span>
+          <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none" id="microToggle" onclick="toggleMicro()">
+            <i class="fas fa-chevron-down me-1"></i>Show all
+          </button>
+        </div>
+        <div id="microPillsWrap" style="max-height:0; overflow:hidden; transition: max-height .3s ease;">
+          <div class="pill-group" id="microPills"></div>
+        </div>
       </div>
     </div>
 
@@ -294,6 +301,19 @@ function excludeLicences() {
       p.classList.add('selected-exclude');
     }
   });
+}
+
+function toggleMicro() {
+  const wrap   = document.getElementById('microPillsWrap');
+  const btn    = document.getElementById('microToggle');
+  const isOpen = wrap.style.maxHeight !== '0px' && wrap.style.maxHeight !== '';
+  if (isOpen) {
+    wrap.style.maxHeight = '0';
+    btn.innerHTML = '<i class="fas fa-chevron-down me-1"></i>Show all';
+  } else {
+    wrap.style.maxHeight = wrap.scrollHeight + 'px';
+    btn.innerHTML = '<i class="fas fa-chevron-up me-1"></i>Hide';
+  }
 }
 
 function toggleAdjValue() {
