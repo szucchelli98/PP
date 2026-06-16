@@ -31,13 +31,13 @@
   <div class="col-md-6">
     <div class="card h-100">
       <div class="card-body">
-        <div class="section-label mb-3"><i class="fas fa-database me-1"></i> Amazon Catalogue File <span class="text-muted fw-normal">(.xlsx / .csv)</span></div>
+        <div class="section-label mb-3"><i class="fas fa-database me-1"></i> Amazon Catalogue File <span class="text-muted fw-normal">(.csv / .txt / .xlsx)</span></div>
         <div id="amazon-drop" class="drop-zone" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'amazon')">
           <i class="fas fa-cloud-upload-alt fa-2x mb-2 text-muted"></i>
           <p class="mb-1">Drag &amp; drop your Amazon file here</p>
-          <p class="text-muted small mb-2">or</p>
+          <p class="text-muted small mb-2">CSV or TXT preferred for large files</p>
           <label class="btn btn-sm btn-outline-secondary">
-            Browse <input type="file" id="amazon-input" accept=".xlsx,.xls,.csv" hidden onchange="fileChosen(this,'amazon')">
+            Browse <input type="file" id="amazon-input" accept=".xlsx,.xls,.csv,.txt,.tsv" hidden onchange="fileChosen(this,'amazon')">
           </label>
         </div>
         <div id="amazon-name" class="mt-2 small text-success d-none"></div>

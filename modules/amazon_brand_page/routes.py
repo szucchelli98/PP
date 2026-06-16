@@ -23,17 +23,19 @@ def _strip_size(sku: str) -> str:
 
 def _load_amazon_file(file_bytes: bytes, filename: str) -> pd.DataFrame:
     """Load the Amazon catalogue keeping only the two relevant columns."""
-    needed = {"seller-sku", "asin1"}
-    if filename.lower().endswith(".csv"):
-        df = pd.read_csv(BytesIO(file_bytes), dtype=str, low_memory=False)
+    needed = ["seller-sku", "asin1"]
+    fname = filename.lower()
+    if fname.endswith(".csv") or fname.endswith(".txt") or fname.endswith(".tsv"):
+        sep = "\t" if (fname.endswith(".txt") or fname.endswith(".tsv")) else ","
+        df = pd.read_csv(BytesIO(file_bytes), dtype=str, sep=sep, low_memory=False, usecols=needed)
     else:
-        df = pd.read_excel(BytesIO(file_bytes), dtype=str)
+        df = pd.read_excel(BytesIO(file_bytes), dtype=str, usecols=needed)
 
-    missing = needed - set(df.columns)
+    missing = set(needed) - set(df.columns)
     if missing:
         raise ValueError(f"Amazon file is missing columns: {', '.join(sorted(missing))}")
 
-    return df[list(needed)].fillna("")
+    return df[needed].fillna("")
 
 
 def _process_sheet(sku_list: list, amazon_df: pd.DataFrame) -> list:
