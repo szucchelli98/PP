@@ -29,7 +29,7 @@ def _load_amazon_file(file_bytes: bytes, filename: str) -> pd.DataFrame:
         sep = "\t" if (fname.endswith(".txt") or fname.endswith(".tsv")) else ","
         df = pd.read_csv(BytesIO(file_bytes), dtype=str, sep=sep, low_memory=False, usecols=needed)
     else:
-        df = pd.read_excel(BytesIO(file_bytes), dtype=str, usecols=needed)
+        df = pd.read_excel(BytesIO(file_bytes), dtype=str, usecols=needed, engine="calamine")
 
     missing = set(needed) - set(df.columns)
     if missing:
