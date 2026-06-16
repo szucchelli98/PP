@@ -12,12 +12,10 @@ def create_app():
     from modules.bag_dimensions.routes import bag_bp
     from modules.best_secret.routes import best_secret_bp
     from modules.promo_selection.routes import promo_bp
-    from modules.amazon_brand_page.routes import amazon_brand_bp
 
     app.register_blueprint(bag_bp, url_prefix="/bag-dimensions")
     app.register_blueprint(best_secret_bp, url_prefix="/best-secret")
     app.register_blueprint(promo_bp, url_prefix="/promo-selection")
-    app.register_blueprint(amazon_brand_bp, url_prefix="/amazon-brand-page")
 
     @app.errorhandler(Exception)
     def handle_exception(e):
