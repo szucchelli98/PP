@@ -22,8 +22,8 @@ def _strip_size(sku: str) -> str:
 
 
 def _load_amazon_file(file_bytes: bytes, filename: str) -> pd.DataFrame:
-    """Load the Amazon catalogue keeping only the three relevant columns."""
-    needed = {"product-id", "seller-sku", "asin1"}
+    """Load the Amazon catalogue keeping only the two relevant columns."""
+    needed = {"seller-sku", "asin1"}
     if filename.lower().endswith(".csv"):
         df = pd.read_csv(BytesIO(file_bytes), dtype=str, low_memory=False)
     else:
@@ -36,24 +36,16 @@ def _load_amazon_file(file_bytes: bytes, filename: str) -> pd.DataFrame:
     return df[list(needed)].fillna("")
 
 
-def _process_sheet(ean_list: list, amazon_df: pd.DataFrame) -> list:
+def _process_sheet(sku_list: list, amazon_df: pd.DataFrame) -> list:
     """
-    Given a list of EANs and the Amazon DataFrame, return a list of ASINs
-    (one per unique style derived from the EAN lookup).
+    Given a list of seller-SKUs and the Amazon DataFrame, return a list of ASINs
+    (one per unique style).
 
     Steps:
-      1. EAN → seller-sku  (via product-id column)
-      2. seller-sku → style  (strip last _ segment)
-      3. deduplicate by style
-      4. style → asin1  (via seller-sku column)
+      1. seller-sku → style  (strip last _ segment)
+      2. deduplicate by style
+      3. style → asin1  (via seller-sku column)
     """
-    # Build lookup maps once
-    ean_to_sku = (
-        amazon_df[amazon_df["product-id"] != ""]
-        .drop_duplicates(subset="product-id")
-        .set_index("product-id")["seller-sku"]
-        .to_dict()
-    )
     sku_to_asin = (
         amazon_df[amazon_df["seller-sku"] != ""]
         .drop_duplicates(subset="seller-sku")
@@ -64,25 +56,20 @@ def _process_sheet(ean_list: list, amazon_df: pd.DataFrame) -> list:
     seen_styles = set()
     asins = []
 
-    for ean in ean_list:
-        ean_str = str(ean).strip()
-        if not ean_str or ean_str.lower() == "nan":
+    for sku in sku_list:
+        sku_str = str(sku).strip()
+        if not sku_str or sku_str.lower() == "nan":
             continue
 
-        sku = ean_to_sku.get(ean_str, "")
-        if not sku:
-            continue
-
-        style = _strip_size(sku)
+        style = _strip_size(sku_str)
         if style in seen_styles:
             continue
         seen_styles.add(style)
 
-        # Look up ASIN using the full style SKU (style without size suffix)
         asin = sku_to_asin.get(style, "")
         if not asin:
             # Fallback: try the original full SKU
-            asin = sku_to_asin.get(sku, "")
+            asin = sku_to_asin.get(sku_str, "")
 
         asins.append(asin if asin else f"NOT FOUND ({style})")
 
@@ -98,10 +85,10 @@ def index():
 
 @amazon_brand_bp.route("/process", methods=["POST"])
 def process():
-    ean_file = request.files.get("ean_file")
+    sku_file = request.files.get("sku_file")
     amazon_file = request.files.get("amazon_file")
 
-    if not ean_file or not amazon_file:
+    if not sku_file or not amazon_file:
         return jsonify({"error": "Both files are required"}), 400
 
     try:
@@ -111,29 +98,28 @@ def process():
         return jsonify({"error": f"Amazon file error: {exc}"}), 400
 
     try:
-        ean_bytes = ean_file.read()
-        xl = pd.ExcelFile(BytesIO(ean_bytes))
+        sku_bytes = sku_file.read()
+        xl = pd.ExcelFile(BytesIO(sku_bytes))
         sheet_names = xl.sheet_names
     except Exception as exc:
-        return jsonify({"error": f"EAN file error: {exc}"}), 400
+        return jsonify({"error": f"SKU file error: {exc}"}), 400
 
     try:
         output_buf = BytesIO()
         with pd.ExcelWriter(output_buf, engine="openpyxl") as writer:
             for sheet in sheet_names:
                 raw_df = xl.parse(sheet, header=None, dtype=str)
-                # Flatten all cells, treat every non-empty cell as an EAN
-                ean_list = (
+                sku_list = (
                     raw_df.values.flatten().tolist()
                     if not raw_df.empty
                     else []
                 )
-                asins = _process_sheet(ean_list, amazon_df)
+                asins = _process_sheet(sku_list, amazon_df)
                 out_df = pd.DataFrame({"ASIN": asins})
                 out_df.to_excel(writer, sheet_name=sheet, index=False)
 
         xlsx_bytes = output_buf.getvalue()
-        base = ean_file.filename.rsplit(".", 1)[0]
+        base = sku_file.filename.rsplit(".", 1)[0]
         dl_name = f"{base}_ASINs.xlsx"
 
         return Response(

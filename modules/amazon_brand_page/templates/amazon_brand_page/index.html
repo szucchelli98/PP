@@ -1,28 +1,28 @@
 {% extends 'base.html' %}
-{% block title %}Amazon Brand Page – EAN to ASIN{% endblock %}
+{% block title %}Amazon Brand Page – SKU to ASIN{% endblock %}
 
 {% block content %}
 <div class="page-header">
-  <h2><i class="fab fa-amazon me-2"></i>Amazon Brand Page — EAN → ASIN</h2>
-  <p>Upload your EAN file and the Amazon catalogue to get a ready-to-use ASIN list per sheet.</p>
+  <h2><i class="fab fa-amazon me-2"></i>Amazon Brand Page — SKU → ASIN</h2>
+  <p>Upload your SKU file and the Amazon catalogue to get a ready-to-use ASIN list per sheet.</p>
 </div>
 
 <div class="row g-4">
 
-  <!-- EAN file drop zone -->
+  <!-- SKU file drop zone -->
   <div class="col-md-6">
     <div class="card h-100">
       <div class="card-body">
-        <div class="section-label mb-3"><i class="fas fa-file-excel me-1"></i> EAN File <span class="text-muted fw-normal">(multi-sheet .xlsx)</span></div>
-        <div id="ean-drop" class="drop-zone" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'ean')">
+        <div class="section-label mb-3"><i class="fas fa-file-excel me-1"></i> SKU File <span class="text-muted fw-normal">(multi-sheet .xlsx)</span></div>
+        <div id="sku-drop" class="drop-zone" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'sku')">
           <i class="fas fa-cloud-upload-alt fa-2x mb-2 text-muted"></i>
-          <p class="mb-1">Drag &amp; drop your EAN file here</p>
+          <p class="mb-1">Drag &amp; drop your SKU file here</p>
           <p class="text-muted small mb-2">or</p>
           <label class="btn btn-sm btn-outline-secondary">
-            Browse <input type="file" id="ean-input" accept=".xlsx,.xls" hidden onchange="fileChosen(this,'ean')">
+            Browse <input type="file" id="sku-input" accept=".xlsx,.xls" hidden onchange="fileChosen(this,'sku')">
           </label>
         </div>
-        <div id="ean-name" class="mt-2 small text-success d-none"></div>
+        <div id="sku-name" class="mt-2 small text-success d-none"></div>
       </div>
     </div>
   </div>
@@ -83,7 +83,7 @@
 
 {% block extra_scripts %}
 <script>
-const files = { ean: null, amazon: null };
+const files = { sku: null, amazon: null };
 
 function onDragOver(e) {
   e.preventDefault();
@@ -112,7 +112,7 @@ function setFile(key, file, zone) {
   updateBtn();
 }
 function updateBtn() {
-  document.getElementById('process-btn').disabled = !(files.ean && files.amazon);
+  document.getElementById('process-btn').disabled = !(files.sku && files.amazon);
 }
 
 async function processFiles() {
@@ -125,7 +125,7 @@ async function processFiles() {
   statusArea.classList.add('d-none');
 
   const fd = new FormData();
-  fd.append('ean_file', files.ean);
+  fd.append('sku_file', files.sku);
   fd.append('amazon_file', files.amazon);
 
   try {
