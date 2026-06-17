@@ -900,15 +900,21 @@ async function runMapping(prefix,processBatch){
   document.getElementById(prefix+'_step3').classList.add('disabled');
   S[prefix+'_results']=[];
   const empty=S[prefix+'_empty'],total=empty.length,batchSize=10;
+  let lastError=null;
   for(let i=0;i<total;i+=batchSize){
     const batch=empty.slice(i,i+batchSize);
     document.getElementById(prefix+'_progressBar').style.width=Math.round((i/total)*100)+'%';
     document.getElementById(prefix+'_progressLabel').textContent=`Processing ${i+1}–${Math.min(i+batchSize,total)} of ${total}...`;
     try{S[prefix+'_results'].push(...(await processBatch(batch)));}
-    catch(err){batch.forEach(o=>S[prefix+'_results'].push({...o,_error:err.message}));}
+    catch(err){lastError=err.message;console.error('Batch error:',err);batch.forEach(o=>S[prefix+'_results'].push({...o,_error:err.message}));}
   }
   document.getElementById(prefix+'_progressBar').style.width='100%';
-  document.getElementById(prefix+'_progressLabel').textContent=`✓ Done — ${S[prefix+'_results'].length} rows mapped.`;
+  if(lastError){
+    document.getElementById(prefix+'_progressLabel').textContent=`⚠️ Completed with errors — check results below.`;
+    showStatus(prefix+'_uploadStatus','danger',`API error: ${lastError}`);
+  } else {
+    document.getElementById(prefix+'_progressLabel').textContent=`✓ Done — ${S[prefix+'_results'].length} rows mapped.`;
+  }
   if(prefix==='cat')renderCategoryResults();
   else if(prefix==='desc')renderDescriptionResults();
   else if(prefix==='shop')renderShopResults();
