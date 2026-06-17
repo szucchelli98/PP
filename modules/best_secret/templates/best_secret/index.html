@@ -847,7 +847,7 @@ async function runSizeMapping(){
   S.size_mapped=[];S.size_unmapped=[];
   const bsByVL={};
   S.size_bs.forEach(r=>{const v=r.valuesList?.toString().trim()||'';if(!bsByVL[v])bsByVL[v]=[];bsByVL[v].push(r);});
-  const empty=S.size_empty,total=empty.length,batchSize=15;
+  const empty=S.size_empty,total=empty.length,batchSize=5;
   for(let i=0;i<total;i+=batchSize){
     const batch=empty.slice(i,i+batchSize);
     document.getElementById('size_progressBar').style.width=Math.round((i/total)*100)+'%';
@@ -899,7 +899,7 @@ async function runMapping(prefix,processBatch){
   document.getElementById(prefix+'_progressWrap').style.display='';
   document.getElementById(prefix+'_step3').classList.add('disabled');
   S[prefix+'_results']=[];
-  const empty=S[prefix+'_empty'],total=empty.length,batchSize=10;
+  const empty=S[prefix+'_empty'],total=empty.length,batchSize=3;
   let lastError=null;
   for(let i=0;i<total;i+=batchSize){
     const batch=empty.slice(i,i+batchSize);
@@ -907,6 +907,7 @@ async function runMapping(prefix,processBatch){
     document.getElementById(prefix+'_progressLabel').textContent=`Processing ${i+1}–${Math.min(i+batchSize,total)} of ${total}...`;
     try{S[prefix+'_results'].push(...(await processBatch(batch)));}
     catch(err){lastError=err.message;console.error('Batch error:',err);batch.forEach(o=>S[prefix+'_results'].push({...o,_error:err.message}));}
+    if(i+batchSize<total)await new Promise(r=>setTimeout(r,8000));
   }
   document.getElementById(prefix+'_progressBar').style.width='100%';
   if(lastError){
