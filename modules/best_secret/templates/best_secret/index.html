@@ -656,7 +656,7 @@ async function runClosureMapping(){
     images.slice(0,4).forEach(img=>{content.push({type:'image',source:{type:'base64',media_type:img.mimeType,data:img.base64}});});
     content.push({type:'text',text:`You are a fashion product closure/fastening expert. Identify the PRIMARY closure for this product.\n\nPRODUCT INFO:\n${ctx}\n\nAVAILABLE BS CLOSURE CODES (code|label):\n${bsList}\n\n${images.length>0?'Examine the images carefully.':'No images — use the product info.'}\n\nRules: pick ONE code, only from the list, if impossible use "NO_MATCH".\nReturn ONLY JSON: {"code":"6832","label":"Buckle closure","reasoning":"..."}`});
     try{
-      const res=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:300,messages:[{role:"user",content}]})});
+      const res=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:300,messages:[{role:"user",content}]})});
       const data=await res.json();
       if(data.error)throw new Error(`${data.error.type}: ${data.error.message}`);
       const text=data.content.map(c=>c.text||'').join('');
@@ -885,7 +885,7 @@ function exportSize(type){
 
 async function callAPI(prompt){
   const res=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:2000,messages:[{role:"user",content:prompt}]})});
+    body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:2000,messages:[{role:"user",content:prompt}]})});
   const data=await res.json();
   if(data.error)throw new Error(`${data.error.type}: ${data.error.message}`);
   if(!data.content||!Array.isArray(data.content))throw new Error(`Unexpected response`);
