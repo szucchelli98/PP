@@ -10,11 +10,9 @@ def create_app():
     app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50 MB
 
     from modules.bag_dimensions.routes import bag_bp
-    from modules.best_secret.routes import best_secret_bp
     from modules.promo_selection.routes import promo_bp
 
     app.register_blueprint(bag_bp, url_prefix="/bag-dimensions")
-    app.register_blueprint(best_secret_bp, url_prefix="/best-secret")
     app.register_blueprint(promo_bp, url_prefix="/promo-selection")
 
     @app.errorhandler(Exception)
