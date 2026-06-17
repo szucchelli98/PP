@@ -721,19 +721,33 @@ function validateGenderCategory(gender,fullLabel){
   return true;
 }
 
+function bsCatForGenders(genders){
+  const needsMen=genders.some(g=>g==='M'||g==='U');
+  const needsWomen=genders.some(g=>g==='W');
+  return S.cat_bs.filter(r=>{
+    if((r.level||0)<3)return false;
+    const fl=(r.full_label||r.label||'').toLowerCase();
+    const hasW=fl.includes('women');
+    const hasM=fl.includes(' men')||fl.startsWith('men')||fl.includes('\\men')||fl.includes('/men');
+    const generic=!hasW&&!hasM;
+    if(needsMen&&(hasM||generic))return true;
+    if(needsWomen&&(hasW||generic))return true;
+    return false;
+  });
+}
 async function runCategoryMapping(){
-  const bsList=S.cat_bs.map(r=>`${r.code}|${r.level}|${r.full_label||r.label}`).join('\n');
   await runMapping('cat',async(batch)=>{
+    const genders=[...new Set(batch.map(r=>r.PP_GENDER))];
+    const filtered=bsCatForGenders(genders);
+    const bsList=filtered.map(r=>`${r.code}|${r.level}|${r.full_label||r.label}`).join('\n');
     const items=batch.map((r,i)=>`${i+1}. Brand:${r.PP_BRAND}, MicroCategory:${r.PP_MICROCATEGORY}, Gender:${r.PP_GENDER}`).join('\n');
-    const prompt=`You are a fashion category mapping expert. Map each PP product to the best BS hierarchy category.\nBS HIERARCHY (code|level|full_label):\n${bsList}\nMAP THESE:\n${items}\nRULES:\n- Prefer level 4, min level 3\n- M→Men only, W→Women only, U→gender-neutral or Men, NEVER Women for U\n- PHILIPP PLEIN: never sport-specific categories\nReturn ONLY JSON array: [{"item":1,"code":"...","full_label":"...","reasoning":"..."}]`;
+    const prompt=`Map each PP product to best BS category. BS HIERARCHY (code|level|full_label):\n${bsList}\nITEMS:\n${items}\nRULES: prefer level 4, min level 3. M→Men only, W→Women only, U→Men or neutral never Women. PHILIPP PLEIN never sport categories.\nReturn ONLY JSON array: [{"item":1,"code":"...","full_label":"...","reasoning":"..."}]`;
     const res=await callAPI(prompt);
     if(!Array.isArray(res))throw new Error('API did not return an array');
     const valid=[],violations=[];
     res.forEach((item,idx)=>{const o=batch[idx];if(!o)return;if(!validateGenderCategory(o.PP_GENDER,item.full_label))violations.push({item,o});else valid.push({item,o});});
     if(violations.length>0){
-      const retryItems=violations.map((v,i)=>`${i+1}. ${v.o.PP_BRAND}, ${v.o.PP_MICROCATEGORY}, Gender:${v.o.PP_GENDER} — WRONG: ${v.item.full_label} — fix to correct gender`).join('\n');
-      try{const rr=await callAPI(`Fix gender violations. BS HIERARCHY:\n${bsList}\nFIX:\n${retryItems}\nReturn ONLY JSON array: [{"item":1,"code":"...","full_label":"...","reasoning":"..."}]`);
-      if(Array.isArray(rr))rr.forEach((item,idx)=>{const v=violations[idx];if(!v)return;if(validateGenderCategory(v.o.PP_GENDER,item.full_label))valid.push({item,o:v.o});else{const fb=findBestGenderFallback(v.o.PP_GENDER,v.o.PP_MICROCATEGORY,S.cat_bs);if(fb)valid.push({item:fb,o:v.o});}});}catch(e){}
+      violations.forEach(v=>{const fb=findBestGenderFallback(v.o.PP_GENDER,v.o.PP_MICROCATEGORY,filtered);if(fb)valid.push({item:fb,o:v.o});});
     }
     return valid.map(({item,o})=>({PP_BRAND:o.PP_BRAND,PP_MICROCATEGORY_CODE:o.PP_MICROCATEGORY_CODE,PP_MICROCATEGORY:o.PP_MICROCATEGORY,PP_GENDER:o.PP_GENDER,categoryCode:item.code,categoryLabel:(item.full_label||'').split('\\').pop().trim(),categoryFullLabel:item.full_label,reasoning:item.reasoning}));
   });
@@ -785,10 +799,20 @@ function updateDesc(idx,code){const c=(S.desc_results[idx]._candidates||[]).find
 function exportDescription(){doExport(S.desc_results.map(r=>({categoryCode:r.categoryCode,categoryFullLabel:r.categoryFullLabel,valuesList:r.valuesList,PP_MICROCATEGORY_CODE:r.PP_MICROCATEGORY_CODE,PP_MICROCATEGORY:r.PP_MICROCATEGORY,description:r.description})),'Description Mapping','BS_DescriptionMapping');}
 
 async function runShopMapping(){
-  const bsList=S.shop_bs.map(r=>`${r.code}|${r.label}`).join('\n');
   await runMapping('shop',async(batch)=>{
+    const genders=[...new Set(batch.map(r=>r.PP_GENDER))];
+    const needsMen=genders.some(g=>g==='M'||g==='U');
+    const needsWomen=genders.some(g=>g==='W'||g==='U');
+    const filtered=S.shop_bs.filter(r=>{
+      const c=(r.code||'').toLowerCase();
+      if(needsMen&&c.startsWith('men'))return true;
+      if(needsWomen&&c.startsWith('women'))return true;
+      if(!c.startsWith('men')&&!c.startsWith('women'))return true;
+      return false;
+    });
+    const bsList=filtered.map(r=>`${r.code}|${r.label}`).join('\n');
     const items=batch.map((r,i)=>`${i+1}. MicroCategory:"${r.PP_MICROCATEGORY}", Gender:${r.PP_GENDER}`).join('\n');
-    const prompt=`Fashion shop category mapping.\nBS SHOP CATEGORIES:\n${bsList}\nMAP:\n${items}\nRULES: M→men_ cat1, W→women_ cat1, U→men_ cat1 + women_ cat2. PHILIPP PLEIN never sport-specific.\nReturn ONLY JSON array: [{"item":1,"cat1":"...","cat2":"","reasoning":"..."}]`;
+    const prompt=`Map PP products to BS shop categories.\nBS SHOP CATEGORIES:\n${bsList}\nITEMS:\n${items}\nRULES: M→men_ cat1, W→women_ cat1, U→men_ cat1 + women_ cat2. PHILIPP PLEIN never sport-specific.\nReturn ONLY JSON array: [{"item":1,"cat1":"...","cat2":"","reasoning":"..."}]`;
     const res=await callAPI(prompt);if(!Array.isArray(res))throw new Error('not array');
     return res.map((item,idx)=>{const o=batch[idx];if(!o)return null;return{PP_MICROCATEGORY_CODE:o.PP_MICROCATEGORY_CODE,PP_MICROCATEGORY:o.PP_MICROCATEGORY,PP_GENDER:o.PP_GENDER,BS_SHOP_CATEGORY_1:item.cat1||'',BS_SHOP_CATEGORY_2:item.cat2||'',reasoning:item.reasoning};}).filter(Boolean);
   });
@@ -814,7 +838,7 @@ function renderShopResults(){
 function exportShop(){doExport(S.shop_results.map(r=>({PP_MICROCATEGORY_CODE:r.PP_MICROCATEGORY_CODE,PP_MICROCATEGORY:r.PP_MICROCATEGORY,PP_GENDER:r.PP_GENDER,BS_SHOP_CATEGORY_1:r.BS_SHOP_CATEGORY_1,BS_SHOP_CATEGORY_2:r.BS_SHOP_CATEGORY_2})),'Shop Category Mapping','BS_ShopCategoryMapping');}
 
 async function runMaterialMapping(){
-  const bsList=S.mat_bs.map(r=>`${r.code}|${r.label}`).join('\n');
+  const bsList=S.mat_bs.slice(0,150).map(r=>`${r.code}|${r.label}`).join('\n');
   await runMapping('mat',async(batch)=>{
     const items=batch.map((r,i)=>`${i+1}. PP_MATERIAL:"${r.PP_MATERIAL}"`).join('\n');
     const prompt=`Fashion materials mapping. Match each PP material to closest BS material.\nBS MATERIALS:\n${bsList}\nITEMS:\n${items}\nReturn ONLY JSON array: [{"item":1,"code":"...","label":"...","reasoning":"..."}]`;
@@ -907,7 +931,7 @@ async function runMapping(prefix,processBatch){
     document.getElementById(prefix+'_progressLabel').textContent=`Processing ${i+1}–${Math.min(i+batchSize,total)} of ${total}...`;
     try{S[prefix+'_results'].push(...(await processBatch(batch)));}
     catch(err){lastError=err.message;console.error('Batch error:',err);batch.forEach(o=>S[prefix+'_results'].push({...o,_error:err.message}));}
-    if(i+batchSize<total)await new Promise(r=>setTimeout(r,8000));
+    if(i+batchSize<total){document.getElementById(prefix+'_progressLabel').textContent=`Waiting 65s for rate limit reset...`;await new Promise(r=>setTimeout(r,65000));}
   }
   document.getElementById(prefix+'_progressBar').style.width='100%';
   if(lastError){
