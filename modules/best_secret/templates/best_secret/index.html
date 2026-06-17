@@ -1,350 +1,502 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BS Mapping Tool</title>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+{% extends 'base.html' %}
+{% block title %}Best Secret Mapping – Marketplace Tool{% endblock %}
+
+{% block extra_head %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Segoe UI',sans-serif;background:#0a0a0a;color:#f0f0f0;min-height:100vh}
-  /* ── Sidebar ── */
-  :root{--sidebar-w:260px}
-  .app-wrapper{display:flex;min-height:100vh}
-  .sidebar{width:var(--sidebar-w);background:#1a1a2e;position:fixed;top:0;left:0;bottom:0;display:flex;flex-direction:column;overflow-y:auto;z-index:200}
-  .sidebar-brand{padding:28px 22px 20px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px;color:#c9a84c;font-weight:700;font-size:.95rem;letter-spacing:.6px;text-transform:uppercase}
-  .sidebar-nav{list-style:none;padding:10px 0;flex:1}
-  .sidebar-nav>li>a{display:flex;align-items:center;gap:11px;padding:11px 22px;color:#9ca3af;text-decoration:none;font-size:.875rem;transition:all .18s;border-left:3px solid transparent}
-  .sidebar-nav>li>a i{width:16px;text-align:center}
-  .sidebar-nav>li>a:hover,.sidebar-nav>li>a.active{background:#16213e;color:#fff;border-left-color:#c9a84c;padding-left:19px}
-  .main-content{margin-left:var(--sidebar-w);flex:1;padding:24px}
-  h1{font-size:20px;font-weight:700;letter-spacing:1px;margin-bottom:4px;color:#fff}
-  .subtitle{font-size:12px;color:#888;margin-bottom:20px}
-  .tabs{display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap}
-  .tab{padding:10px 14px;border-radius:8px 8px 0 0;border:1px solid #2a2a2a;border-bottom:none;cursor:pointer;font-size:11px;font-weight:600;background:#111;color:#666;transition:all .2s}
-  .tab.active{background:#161616;color:#c8a96e;border-color:#c8a96e44}
-  .tab-content{display:none}.tab-content.active{display:block}
-  .step{background:#161616;border:1px solid #2a2a2a;border-radius:10px;padding:20px;margin-bottom:16px}
-  .step-title{font-size:13px;font-weight:600;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px}
-  .upload-area{border:2px dashed #333;border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;position:relative}
-  .upload-area:hover{border-color:#c8a96e;background:#1a1710}
-  .upload-area.done{border-color:#4caf50;border-style:solid;background:#0d1a0d}
-  .upload-area input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-  .upload-icon{font-size:28px;margin-bottom:8px}
-  .upload-label{font-size:13px;color:#aaa}
-  .upload-label span{color:#c8a96e;font-weight:600}
-  .file-name{font-size:12px;color:#4caf50;margin-top:6px}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
-  .btn{padding:12px 24px;border-radius:8px;border:none;cursor:pointer;font-size:14px;font-weight:600;transition:all .2s}
-  .btn-primary{background:#c8a96e;color:#000;width:100%}
-  .btn-primary:hover:not(:disabled){background:#e0c080}
-  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
-  .btn-secondary{background:#2a2a2a;color:#f0f0f0;padding:10px 20px;font-size:13px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
-  .btn-secondary:hover{background:#3a3a3a}
-  .btn-export{background:#4caf50;color:#000;padding:10px 20px;font-size:13px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
-  .btn-export:hover{background:#66bb6a}
-  .status{font-size:13px;padding:10px 14px;border-radius:6px;margin-top:12px}
-  .status.success{background:#0d1a0d;color:#4caf50;border:1px solid #2a4a2a}
-  .status.error{background:#1a0d0d;color:#f44336;border:1px solid #4a2a2a}
-  .status.info{background:#1a1f2e;color:#7eb3ff;border:1px solid #2a3a5e}
-  .status.warning{background:#1a1600;color:#ffb300;border:1px solid #4a3a00}
-  table{width:100%;border-collapse:collapse;font-size:12px}
-  th{background:#1e1e1e;color:#888;text-transform:uppercase;font-size:10px;letter-spacing:.5px;padding:8px 10px;text-align:left;border-bottom:1px solid #2a2a2a;position:sticky;top:0;z-index:1}
-  td{padding:8px 10px;border-bottom:1px solid #1e1e1e;vertical-align:middle}
-  tr:hover td{background:#1a1a1a}
-  .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600}
-  .badge-M{background:#1a2a3a;color:#7eb3ff}
-  .badge-W{background:#2a1a2a;color:#f48fb1}
-  .badge-U{background:#1a2a1a;color:#a5d6a7}
-  select{background:#1e1e1e;color:#f0f0f0;border:1px solid #333;border-radius:4px;padding:4px 6px;font-size:11px;width:100%;max-width:260px}
-  select:focus{outline:none;border-color:#c8a96e}
-  .table-wrap{max-height:380px;overflow-y:auto;border-radius:6px;border:1px solid #2a2a2a}
-  .progress-wrap{background:#1e1e1e;border-radius:6px;height:8px;overflow:hidden;margin-top:8px}
-  .progress-bar{height:100%;background:linear-gradient(90deg,#c8a96e,#e0c080);border-radius:6px;transition:width .3s}
-  .actions-row{display:flex;justify-content:space-between;align-items:center;margin-top:14px;margin-bottom:4px;gap:8px;flex-wrap:wrap}
-  .count-badge{background:#c8a96e22;color:#c8a96e;border:1px solid #c8a96e44;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600}
-  .count-badge-blue{background:#1a2a3a;color:#7eb3ff;border:1px solid #2a3a5e;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600}
-  .hidden{display:none}
-  .pp-cat{color:#c8a96e;font-weight:600}
-  .bs-code{font-family:monospace;color:#7eb3ff;font-size:11px}
-  .reasoning{font-size:10px;color:#555;font-style:italic;margin-top:3px}
-  .sku-list{background:#111;border:1px solid #2a2a2a;border-radius:6px;padding:12px;font-family:monospace;font-size:11px;color:#a5d6a7;max-height:200px;overflow-y:auto;white-space:pre-wrap;margin-top:10px}
-  .section-label{font-size:12px;font-weight:600;color:#aaa;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.5px}
-  .img-upload-area{border:2px dashed #333;border-radius:8px;padding:30px;text-align:center;cursor:pointer;transition:all .2s;position:relative}
-  .img-upload-area:hover{border-color:#c8a96e;background:#1a1710}
-  .img-upload-area.done{border-color:#4caf50;border-style:solid;background:#0d1a0d}
-  .img-upload-area input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-  .propagated-row td{background:#0d1a1a!important}
-  .image-row td{background:#1a1a0d!important}
-  .info-row td{background:#1a0d1a!important}
+  .bs-tabs { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:0; border-bottom:none; }
+  .bs-tab {
+    padding:9px 16px; border-radius:8px 8px 0 0;
+    border:1px solid #e5e7eb; border-bottom:none;
+    cursor:pointer; font-size:.82rem; font-weight:600;
+    background:#f9fafb; color:#6b7280; transition:all .18s;
+  }
+  .bs-tab.active { background:#fff; color:var(--accent); border-color:#e5e7eb; border-bottom:1px solid #fff; position:relative; z-index:1; }
+  .bs-tab-content { display:none; }
+  .bs-tab-content.active { display:block; }
+  .bs-tab-panel {
+    background:#fff; border:1px solid #e5e7eb; border-radius:0 12px 12px 12px;
+    padding:28px; box-shadow:0 1px 6px rgba(0,0,0,.06);
+  }
+
+  .step-card {
+    background:#fff; border-radius:12px; border:1px solid #e5e7eb;
+    padding:22px 26px; margin-bottom:14px;
+    box-shadow:0 1px 4px rgba(0,0,0,.04);
+  }
+  .step-num {
+    display:inline-flex; align-items:center; justify-content:center;
+    width:26px; height:26px; border-radius:50%;
+    background:var(--accent); color:#1a1a2e;
+    font-size:.78rem; font-weight:700; margin-right:10px; flex-shrink:0;
+  }
+  .step-head { font-weight:600; font-size:.95rem; display:flex; align-items:center; margin-bottom:16px; color:#111827; }
+  .step-card.disabled { opacity:.45; pointer-events:none; }
+
+  .upload-zone {
+    border:2px dashed #d1d5db; border-radius:10px;
+    padding:24px; text-align:center; cursor:pointer;
+    background:#fafafa; transition:all .2s; position:relative;
+  }
+  .upload-zone:hover { border-color:var(--accent); background:#fdf8ec; }
+  .upload-zone.done  { border-style:solid; border-color:#16a34a; background:#f0fff4; }
+  .upload-zone input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+  .upload-zone i     { font-size:1.8rem; color:#9ca3af; display:block; margin-bottom:8px; }
+  .upload-zone.done i { color:#16a34a; }
+  .upload-zone p     { color:#6b7280; font-size:.85rem; margin:0; }
+  .upload-zone .fname { font-size:.8rem; color:#16a34a; margin-top:5px; font-weight:600; }
+
+  .map-table { font-size:.82rem; }
+  .map-table th { background:#f9fafb; font-weight:600; font-size:.75rem; text-transform:uppercase; letter-spacing:.4px; color:#6b7280; }
+  .map-table select { background:#fff; color:#111; border:1px solid #d1d5db; border-radius:6px; padding:3px 6px; font-size:.78rem; width:100%; max-width:280px; }
+  .map-table select:focus { border-color:var(--accent); outline:none; box-shadow:0 0 0 3px rgba(201,168,76,.15); }
+  .reasoning-note { font-size:.73rem; color:#9ca3af; font-style:italic; margin-top:2px; }
+
+  .gender-badge { display:inline-block; padding:2px 7px; border-radius:4px; font-size:.72rem; font-weight:700; }
+  .gb-M  { background:#dbeafe; color:#1e40af; }
+  .gb-W  { background:#fce7f3; color:#9d174d; }
+  .gb-U  { background:#dcfce7; color:#166534; }
+
+  .count-pill { display:inline-flex; align-items:center; padding:4px 12px; border-radius:999px; font-size:.8rem; font-weight:600; }
+  .cp-gold    { background:#fdf3d0; color:#92690a; border:1px solid #e9d88a; }
+  .cp-blue    { background:#dbeafe; color:#1e40af; border:1px solid #bfdbfe; }
+  .cp-red     { background:#fee2e2; color:#991b1b; border:1px solid #fecaca; }
+
+  .sku-list-box { background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:12px; font-family:monospace; font-size:.78rem; color:#374151; max-height:180px; overflow-y:auto; white-space:pre-wrap; margin-top:10px; }
+
+  .img-zone { border:2px dashed #d1d5db; border-radius:10px; padding:28px; text-align:center; cursor:pointer; background:#fafafa; transition:all .2s; position:relative; }
+  .img-zone:hover { border-color:var(--accent); background:#fdf8ec; }
+  .img-zone.done  { border-style:solid; border-color:#16a34a; background:#f0fff4; }
+  .img-zone input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+
+  .prop-row  { background:#f0fff4 !important; }
+  .img-row   { background:#fdf8ec !important; }
+  .info-row  { background:#f0f4ff !important; }
 </style>
-</head>
-<body>
-<div class="app-wrapper">
+{% endblock %}
 
-<!-- Sidebar -->
-<nav class="sidebar">
-  <div class="sidebar-brand">
-    <i class="fas fa-briefcase"></i>
-    <span>Marketplace Tool</span>
-  </div>
-  <ul class="sidebar-nav">
-    <li><a href="/"><i class="fas fa-th-large"></i> Dashboard</a></li>
-    <li><a href="/bag-dimensions/"><i class="fas fa-shopping-bag"></i> Bag Dimensions</a></li>
-    <li><a href="/promo-selection/"><i class="fas fa-tags"></i> Promo Selection</a></li>
-    <li><a href="/best-secret/" class="active"><i class="fas fa-layer-group"></i> Best Secret Mapping</a></li>
-  </ul>
-</nav>
+{% block content %}
+<div class="page-header">
+  <h2><i class="fas fa-layer-group me-2" style="color:var(--accent)"></i>Best Secret Mapping</h2>
+  <p>AI-powered mapping tool — upload your files, let Claude map them, download the result.</p>
+</div>
 
-<!-- Main content -->
-<div class="main-content">
-<h1>⚡ BEST SECRET MAPPING TOOL</h1>
-<p class="subtitle">Philipp Plein × Best Secret — Marketplace Mapping Assistant</p>
-
-<div class="tabs">
-  <div class="tab active" onclick="switchTab('category')">🗂 Category</div>
-  <div class="tab" onclick="switchTab('description')">📝 Description</div>
-  <div class="tab" onclick="switchTab('shopcategory')">🏪 Shop Category</div>
-  <div class="tab" onclick="switchTab('material')">🧵 Material</div>
-  <div class="tab" onclick="switchTab('size')">📐 Size</div>
-  <div class="tab" onclick="switchTab('closure')">🔒 Closure</div>
+<!-- ── Tabs ───────────────────────────────────────────────────────────── -->
+<div class="bs-tabs">
+  <div class="bs-tab active" onclick="switchTab('category')"><i class="fas fa-tags me-1"></i>Category</div>
+  <div class="bs-tab" onclick="switchTab('description')"><i class="fas fa-align-left me-1"></i>Description</div>
+  <div class="bs-tab" onclick="switchTab('shopcategory')"><i class="fas fa-store me-1"></i>Shop Category</div>
+  <div class="bs-tab" onclick="switchTab('material')"><i class="fas fa-layer-group me-1"></i>Material</div>
+  <div class="bs-tab" onclick="switchTab('size')"><i class="fas fa-ruler me-1"></i>Size</div>
+  <div class="bs-tab" onclick="switchTab('closure')"><i class="fas fa-lock me-1"></i>Closure</div>
 </div>
 
 <!-- ===== CATEGORY ===== -->
-<div id="tab-category" class="tab-content active">
-  <div class="step"><div class="step-title">① Upload Files</div>
-    <div class="grid2">
-      <div><div style="font-size:11px;color:#888;margin-bottom:6px">Best Secret Hierarchy File</div>
-        <div class="upload-area" id="cat_bsArea"><input type="file" accept=".xlsx,.csv" onchange="handleFile('cat_bs',this)">
-        <div class="upload-icon">📂</div><div class="upload-label">Drop <span>BS Hierarchy</span> here</div>
-        <div class="file-name" id="cat_bsFileName"></div></div></div>
-      <div><div style="font-size:11px;color:#888;margin-bottom:6px">Philipp Plein Mapping File</div>
-        <div class="upload-area" id="cat_ppArea"><input type="file" accept=".xlsx,.csv" onchange="handleFile('cat_pp',this)">
-        <div class="upload-icon">📂</div><div class="upload-label">Drop <span>PP Mapping</span> here</div>
-        <div class="file-name" id="cat_ppFileName"></div></div></div>
-    </div><div id="cat_uploadStatus"></div></div>
-  <div class="step" id="cat_step2" style="opacity:.4;pointer-events:none">
-    <div class="step-title">② Run AI Mapping</div>
-    <div id="cat_emptyRowsInfo" style="font-size:13px;color:#aaa;margin-bottom:12px"></div>
-    <button class="btn btn-primary" id="cat_runBtn" onclick="runCategoryMapping()" disabled>🤖 Start AI Mapping</button>
-    <div id="cat_progressWrap" class="hidden" style="margin-top:12px">
-      <div style="font-size:12px;color:#888" id="cat_progressLabel">Processing...</div>
-      <div class="progress-wrap"><div class="progress-bar" id="cat_progressBar" style="width:0%"></div></div>
-    </div></div>
-  <div class="step" id="cat_step3" style="opacity:.4;pointer-events:none">
-    <div class="step-title">③ Review & Export</div>
-    <div class="actions-row"><div class="count-badge" id="cat_mappedCount">0 rows mapped</div>
-      <button class="btn btn-export" onclick="exportCategory()">📥 Export Excel</button></div>
-    <div class="table-wrap"><table><thead><tr><th>Brand</th><th>Code</th><th>PP Category</th><th>Gender</th><th>BS Category</th><th>Full Path</th></tr></thead>
-    <tbody id="cat_resultsBody"></tbody></table></div></div>
+<div id="tab-category" class="bs-tab-content active">
+<div class="bs-tab-panel">
+
+  <div class="step-card">
+    <div class="step-head"><span class="step-num">1</span>Upload Files</div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="form-label small fw-semibold">Best Secret Hierarchy File</div>
+        <div class="upload-zone" id="cat_bsArea">
+          <input type="file" accept=".xlsx,.csv" onchange="handleFile('cat_bs',this)">
+          <i class="fas fa-file-excel"></i>
+          <p><strong>BS Hierarchy</strong> — click or drop</p>
+          <div class="fname" id="cat_bsFileName"></div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-label small fw-semibold">Philipp Plein Mapping File</div>
+        <div class="upload-zone" id="cat_ppArea">
+          <input type="file" accept=".xlsx,.csv" onchange="handleFile('cat_pp',this)">
+          <i class="fas fa-file-excel"></i>
+          <p><strong>PP Mapping</strong> — click or drop</p>
+          <div class="fname" id="cat_ppFileName"></div>
+        </div>
+      </div>
+    </div>
+    <div id="cat_uploadStatus" class="mt-2"></div>
+  </div>
+
+  <div class="step-card disabled" id="cat_step2">
+    <div class="step-head"><span class="step-num">2</span>Run AI Mapping</div>
+    <div id="cat_emptyRowsInfo" class="text-muted small mb-3"></div>
+    <button class="btn btn-gold" id="cat_runBtn" onclick="runCategoryMapping()" disabled>
+      <i class="fas fa-brain me-2"></i>Start AI Mapping
+    </button>
+    <div id="cat_progressWrap" class="mt-3" style="display:none">
+      <div class="d-flex justify-content-between mb-1">
+        <span class="small text-muted" id="cat_progressLabel">Processing...</span>
+      </div>
+      <div class="progress" style="height:8px;border-radius:99px">
+        <div class="progress-bar" id="cat_progressBar" style="width:0%;background:var(--accent);border-radius:99px;transition:width .3s"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step-card disabled" id="cat_step3">
+    <div class="step-head"><span class="step-num">3</span>Review &amp; Export</div>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <span class="count-pill cp-gold" id="cat_mappedCount">0 rows mapped</span>
+      <button class="btn btn-gold" onclick="exportCategory()"><i class="fas fa-file-download me-2"></i>Export Excel</button>
+    </div>
+    <div class="table-responsive" style="max-height:360px;border:1px solid #e5e7eb;border-radius:8px">
+      <table class="table table-sm table-bordered map-table mb-0">
+        <thead class="sticky-top"><tr><th>Brand</th><th>Code</th><th>PP Category</th><th>Gender</th><th>BS Category</th><th>Full Path</th></tr></thead>
+        <tbody id="cat_resultsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
 </div>
 
 <!-- ===== DESCRIPTION ===== -->
-<div id="tab-description" class="tab-content">
-  <div class="step"><div class="step-title">① Upload Files</div>
-    <div class="grid2">
-      <div><div style="font-size:11px;color:#888;margin-bottom:6px">Best Secret Values List File</div>
-        <div class="upload-area" id="desc_bsArea"><input type="file" accept=".xlsx,.csv" onchange="handleFile('desc_bs',this)">
-        <div class="upload-icon">📂</div><div class="upload-label">Drop <span>BS Values List</span> here</div>
-        <div class="file-name" id="desc_bsFileName"></div></div></div>
-      <div><div style="font-size:11px;color:#888;margin-bottom:6px">Philipp Plein Description File</div>
-        <div class="upload-area" id="desc_ppArea"><input type="file" accept=".xlsx,.csv" onchange="handleFile('desc_pp',this)">
-        <div class="upload-icon">📂</div><div class="upload-label">Drop <span>PP Description File</span> here</div>
-        <div class="file-name" id="desc_ppFileName"></div></div></div>
-    </div><div id="desc_uploadStatus"></div></div>
-  <div class="step" id="desc_step2" style="opacity:.4;pointer-events:none">
-    <div class="step-title">② Run AI Mapping</div>
-    <div id="desc_emptyRowsInfo" style="font-size:13px;color:#aaa;margin-bottom:12px"></div>
-    <button class="btn btn-primary" id="desc_runBtn" onclick="runDescriptionMapping()" disabled>🤖 Start AI Mapping</button>
-    <div id="desc_progressWrap" class="hidden" style="margin-top:12px">
-      <div style="font-size:12px;color:#888" id="desc_progressLabel">Processing...</div>
-      <div class="progress-wrap"><div class="progress-bar" id="desc_progressBar" style="width:0%"></div></div>
-    </div></div>
-  <div class="step" id="desc_step3" style="opacity:.4;pointer-events:none">
-    <div class="step-title">③ Review & Export</div>
-    <div class="actions-row"><div class="count-badge" id="desc_mappedCount">0 rows mapped</div>
-      <button class="btn btn-export" onclick="exportDescription()">📥 Export Excel</button></div>
-    <div class="table-wrap"><table><thead><tr><th>Category Code</th><th>Category Full Label</th><th>Values List</th><th>PP Code</th><th>PP Microcategory</th><th>Description</th><th>Reasoning</th></tr></thead>
-    <tbody id="desc_resultsBody"></tbody></table></div></div>
+<div id="tab-description" class="bs-tab-content">
+<div class="bs-tab-panel">
+
+  <div class="step-card">
+    <div class="step-head"><span class="step-num">1</span>Upload Files</div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="form-label small fw-semibold">Best Secret Values List File</div>
+        <div class="upload-zone" id="desc_bsArea">
+          <input type="file" accept=".xlsx,.csv" onchange="handleFile('desc_bs',this)">
+          <i class="fas fa-file-excel"></i><p><strong>BS Values List</strong> — click or drop</p>
+          <div class="fname" id="desc_bsFileName"></div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-label small fw-semibold">Philipp Plein Description File</div>
+        <div class="upload-zone" id="desc_ppArea">
+          <input type="file" accept=".xlsx,.csv" onchange="handleFile('desc_pp',this)">
+          <i class="fas fa-file-excel"></i><p><strong>PP Description File</strong> — click or drop</p>
+          <div class="fname" id="desc_ppFileName"></div>
+        </div>
+      </div>
+    </div>
+    <div id="desc_uploadStatus" class="mt-2"></div>
+  </div>
+
+  <div class="step-card disabled" id="desc_step2">
+    <div class="step-head"><span class="step-num">2</span>Run AI Mapping</div>
+    <div id="desc_emptyRowsInfo" class="text-muted small mb-3"></div>
+    <button class="btn btn-gold" id="desc_runBtn" onclick="runDescriptionMapping()" disabled>
+      <i class="fas fa-brain me-2"></i>Start AI Mapping
+    </button>
+    <div id="desc_progressWrap" class="mt-3" style="display:none">
+      <div class="progress" style="height:8px;border-radius:99px">
+        <div class="progress-bar" id="desc_progressBar" style="width:0%;background:var(--accent);border-radius:99px;transition:width .3s"></div>
+      </div>
+      <div class="small text-muted mt-1" id="desc_progressLabel">Processing...</div>
+    </div>
+  </div>
+
+  <div class="step-card disabled" id="desc_step3">
+    <div class="step-head"><span class="step-num">3</span>Review &amp; Export</div>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <span class="count-pill cp-gold" id="desc_mappedCount">0 rows mapped</span>
+      <button class="btn btn-gold" onclick="exportDescription()"><i class="fas fa-file-download me-2"></i>Export Excel</button>
+    </div>
+    <div class="table-responsive" style="max-height:360px;border:1px solid #e5e7eb;border-radius:8px">
+      <table class="table table-sm table-bordered map-table mb-0">
+        <thead class="sticky-top"><tr><th>Category Code</th><th>Category Full Label</th><th>Values List</th><th>PP Code</th><th>PP Microcategory</th><th>Description</th><th>Reasoning</th></tr></thead>
+        <tbody id="desc_resultsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
 </div>
 
 <!-- ===== SHOP CATEGORY ===== -->
-<div id="tab-shopcategory" class="tab-content">
-  <div class="step"><div class="step-title">① Upload Files</div>
-    <div class="grid2">
-      <div><div style="font-size:11px;color:#888;margin-bottom:6px">Best Secret Shop Categories File</div>
-        <div class="upload-area" id="shop_bsArea"><input type="file" accept=".xlsx,.csv" onchange="handleFile('shop_bs',this)">
-        <div class="upload-icon">📂</div><div class="upload-label">Drop <span>BS Shop Categories</span> here</div>
-        <div class="file-name" id="shop_bsFileName"></div></div></div>
-      <div><div style="font-size:11px;color:#888;margin-bottom:6px">Philipp Plein Shop Category File</div>
-        <div class="upload-area" id="shop_ppArea"><input type="file" accept=".xlsx,.csv" onchange="handleFile('shop_pp',this)">
-        <div class="upload-icon">📂</div><div class="upload-label">Drop <span>PP Shop Category File</span> here</div>
-        <div class="file-name" id="shop_ppFileName"></div></div></div>
-    </div><div id="shop_uploadStatus"></div></div>
-  <div class="step" id="shop_step2" style="opacity:.4;pointer-events:none">
-    <div class="step-title">② Run AI Mapping</div>
-    <div style="font-size:12px;color:#888;margin-bottom:12px">
-      <span style="color:#c8a96e">M</span> → men_ col1 &nbsp;|&nbsp;<span style="color:#f48fb1">W</span> → women_ col1 &nbsp;|&nbsp;<span style="color:#a5d6a7">U</span> → men_ col1 + women_ col2</div>
-    <div id="shop_emptyRowsInfo" style="font-size:13px;color:#aaa;margin-bottom:12px"></div>
-    <button class="btn btn-primary" id="shop_runBtn" onclick="runShopMapping()" disabled>🤖 Start AI Mapping</button>
-    <div id="shop_progressWrap" class="hidden" style="margin-top:12px">
-      <div style="font-size:12px;color:#888" id="shop_progressLabel">Processing...</div>
-      <div class="progress-wrap"><div class="progress-bar" id="shop_progressBar" style="width:0%"></div></div>
-    </div></div>
-  <div class="step" id="shop_step3" style="opacity:.4;pointer-events:none">
-    <div class="step-title">③ Review & Export</div>
-    <div class="actions-row"><div class="count-badge" id="shop_mappedCount">0 rows mapped</div>
-      <button class="btn btn-export" onclick="exportShop()">📥 Export Excel</button></div>
-    <div class="table-wrap"><table><thead><tr><th>PP Code</th><th>PP Microcategory</th><th>Gender</th><th>BS Shop Cat 1</th><th>BS Shop Cat 2</th><th>Reasoning</th></tr></thead>
-    <tbody id="shop_resultsBody"></tbody></table></div></div>
+<div id="tab-shopcategory" class="bs-tab-content">
+<div class="bs-tab-panel">
+
+  <div class="step-card">
+    <div class="step-head"><span class="step-num">1</span>Upload Files</div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="form-label small fw-semibold">Best Secret Shop Categories File</div>
+        <div class="upload-zone" id="shop_bsArea">
+          <input type="file" accept=".xlsx,.csv" onchange="handleFile('shop_bs',this)">
+          <i class="fas fa-file-excel"></i><p><strong>BS Shop Categories</strong> — click or drop</p>
+          <div class="fname" id="shop_bsFileName"></div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-label small fw-semibold">Philipp Plein Shop Category File</div>
+        <div class="upload-zone" id="shop_ppArea">
+          <input type="file" accept=".xlsx,.csv" onchange="handleFile('shop_pp',this)">
+          <i class="fas fa-file-excel"></i><p><strong>PP Shop Category File</strong> — click or drop</p>
+          <div class="fname" id="shop_ppFileName"></div>
+        </div>
+      </div>
+    </div>
+    <div id="shop_uploadStatus" class="mt-2"></div>
+  </div>
+
+  <div class="step-card disabled" id="shop_step2">
+    <div class="step-head"><span class="step-num">2</span>Run AI Mapping</div>
+    <p class="text-muted small mb-3">
+      <span class="gender-badge gb-M">M</span> → men_ col1 &nbsp;|&nbsp;
+      <span class="gender-badge gb-W">W</span> → women_ col1 &nbsp;|&nbsp;
+      <span class="gender-badge gb-U">U</span> → men_ col1 + women_ col2
+    </p>
+    <div id="shop_emptyRowsInfo" class="text-muted small mb-3"></div>
+    <button class="btn btn-gold" id="shop_runBtn" onclick="runShopMapping()" disabled>
+      <i class="fas fa-brain me-2"></i>Start AI Mapping
+    </button>
+    <div id="shop_progressWrap" class="mt-3" style="display:none">
+      <div class="progress" style="height:8px;border-radius:99px">
+        <div class="progress-bar" id="shop_progressBar" style="width:0%;background:var(--accent);border-radius:99px;transition:width .3s"></div>
+      </div>
+      <div class="small text-muted mt-1" id="shop_progressLabel">Processing...</div>
+    </div>
+  </div>
+
+  <div class="step-card disabled" id="shop_step3">
+    <div class="step-head"><span class="step-num">3</span>Review &amp; Export</div>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <span class="count-pill cp-gold" id="shop_mappedCount">0 rows mapped</span>
+      <button class="btn btn-gold" onclick="exportShop()"><i class="fas fa-file-download me-2"></i>Export Excel</button>
+    </div>
+    <div class="table-responsive" style="max-height:360px;border:1px solid #e5e7eb;border-radius:8px">
+      <table class="table table-sm table-bordered map-table mb-0">
+        <thead class="sticky-top"><tr><th>PP Code</th><th>PP Microcategory</th><th>Gender</th><th>BS Shop Cat 1</th><th>BS Shop Cat 2</th><th>Reasoning</th></tr></thead>
+        <tbody id="shop_resultsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
 </div>
 
 <!-- ===== MATERIAL ===== -->
-<div id="tab-material" class="tab-content">
-  <div class="step"><div class="step-title">① Upload Files</div>
-    <div class="grid2">
-      <div><div style="font-size:11px;color:#888;margin-bottom:6px">Best Secret Materials File</div>
-        <div class="upload-area" id="mat_bsArea"><input type="file" accept=".xlsx,.csv" onchange="handleFile('mat_bs',this)">
-        <div class="upload-icon">📂</div><div class="upload-label">Drop <span>BS Materials</span> here</div>
-        <div class="file-name" id="mat_bsFileName"></div></div></div>
-      <div><div style="font-size:11px;color:#888;margin-bottom:6px">Philipp Plein Materials File</div>
-        <div class="upload-area" id="mat_ppArea"><input type="file" accept=".xlsx,.csv" onchange="handleFile('mat_pp',this)">
-        <div class="upload-icon">📂</div><div class="upload-label">Drop <span>PP Materials File</span> here</div>
-        <div class="file-name" id="mat_ppFileName"></div></div></div>
-    </div><div id="mat_uploadStatus"></div></div>
-  <div class="step" id="mat_step2" style="opacity:.4;pointer-events:none">
-    <div class="step-title">② Run AI Mapping</div>
-    <div id="mat_emptyRowsInfo" style="font-size:13px;color:#aaa;margin-bottom:12px"></div>
-    <button class="btn btn-primary" id="mat_runBtn" onclick="runMaterialMapping()" disabled>🤖 Start AI Mapping</button>
-    <div id="mat_progressWrap" class="hidden" style="margin-top:12px">
-      <div style="font-size:12px;color:#888" id="mat_progressLabel">Processing...</div>
-      <div class="progress-wrap"><div class="progress-bar" id="mat_progressBar" style="width:0%"></div></div>
-    </div></div>
-  <div class="step" id="mat_step3" style="opacity:.4;pointer-events:none">
-    <div class="step-title">③ Review & Export</div>
-    <div class="actions-row"><div class="count-badge" id="mat_mappedCount">0 rows mapped</div>
-      <button class="btn btn-export" onclick="exportMaterial()">📥 Export Excel</button></div>
-    <div class="table-wrap"><table><thead><tr><th>PP Material</th><th>BS Code</th><th>BS Label</th><th>Reasoning</th></tr></thead>
-    <tbody id="mat_resultsBody"></tbody></table></div></div>
+<div id="tab-material" class="bs-tab-content">
+<div class="bs-tab-panel">
+
+  <div class="step-card">
+    <div class="step-head"><span class="step-num">1</span>Upload Files</div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="form-label small fw-semibold">Best Secret Materials File</div>
+        <div class="upload-zone" id="mat_bsArea">
+          <input type="file" accept=".xlsx,.csv" onchange="handleFile('mat_bs',this)">
+          <i class="fas fa-file-excel"></i><p><strong>BS Materials</strong> — click or drop</p>
+          <div class="fname" id="mat_bsFileName"></div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-label small fw-semibold">Philipp Plein Materials File</div>
+        <div class="upload-zone" id="mat_ppArea">
+          <input type="file" accept=".xlsx,.csv" onchange="handleFile('mat_pp',this)">
+          <i class="fas fa-file-excel"></i><p><strong>PP Materials File</strong> — click or drop</p>
+          <div class="fname" id="mat_ppFileName"></div>
+        </div>
+      </div>
+    </div>
+    <div id="mat_uploadStatus" class="mt-2"></div>
+  </div>
+
+  <div class="step-card disabled" id="mat_step2">
+    <div class="step-head"><span class="step-num">2</span>Run AI Mapping</div>
+    <div id="mat_emptyRowsInfo" class="text-muted small mb-3"></div>
+    <button class="btn btn-gold" id="mat_runBtn" onclick="runMaterialMapping()" disabled>
+      <i class="fas fa-brain me-2"></i>Start AI Mapping
+    </button>
+    <div id="mat_progressWrap" class="mt-3" style="display:none">
+      <div class="progress" style="height:8px;border-radius:99px">
+        <div class="progress-bar" id="mat_progressBar" style="width:0%;background:var(--accent);border-radius:99px;transition:width .3s"></div>
+      </div>
+      <div class="small text-muted mt-1" id="mat_progressLabel">Processing...</div>
+    </div>
+  </div>
+
+  <div class="step-card disabled" id="mat_step3">
+    <div class="step-head"><span class="step-num">3</span>Review &amp; Export</div>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <span class="count-pill cp-gold" id="mat_mappedCount">0 rows mapped</span>
+      <button class="btn btn-gold" onclick="exportMaterial()"><i class="fas fa-file-download me-2"></i>Export Excel</button>
+    </div>
+    <div class="table-responsive" style="max-height:360px;border:1px solid #e5e7eb;border-radius:8px">
+      <table class="table table-sm table-bordered map-table mb-0">
+        <thead class="sticky-top"><tr><th>PP Material</th><th>BS Code</th><th>BS Label</th><th>Reasoning</th></tr></thead>
+        <tbody id="mat_resultsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
 </div>
 
 <!-- ===== SIZE ===== -->
-<div id="tab-size" class="tab-content">
-  <div class="step"><div class="step-title">① Upload Files</div>
-    <div class="grid2">
-      <div><div style="font-size:11px;color:#888;margin-bottom:6px">Best Secret Size Values File</div>
-        <div class="upload-area" id="size_bsArea"><input type="file" accept=".xlsx,.csv" onchange="handleFile('size_bs',this)">
-        <div class="upload-icon">📂</div><div class="upload-label">Drop <span>BS Size Values</span> here</div>
-        <div class="file-name" id="size_bsFileName"></div></div></div>
-      <div><div style="font-size:11px;color:#888;margin-bottom:6px">Philipp Plein Size File</div>
-        <div class="upload-area" id="size_ppArea"><input type="file" accept=".xlsx,.csv" onchange="handleFile('size_pp',this)">
-        <div class="upload-icon">📂</div><div class="upload-label">Drop <span>PP Size File</span> here</div>
-        <div class="file-name" id="size_ppFileName"></div></div></div>
-    </div><div id="size_uploadStatus"></div></div>
-  <div class="step" id="size_step2" style="opacity:.4;pointer-events:none">
-    <div class="step-title">② Run AI Mapping</div>
-    <div id="size_emptyRowsInfo" style="font-size:13px;color:#aaa;margin-bottom:12px"></div>
-    <button class="btn btn-primary" id="size_runBtn" onclick="runSizeMapping()" disabled>🤖 Start AI Mapping</button>
-    <div id="size_progressWrap" class="hidden" style="margin-top:12px">
-      <div style="font-size:12px;color:#888" id="size_progressLabel">Processing...</div>
-      <div class="progress-wrap"><div class="progress-bar" id="size_progressBar" style="width:0%"></div></div>
-    </div></div>
-  <div class="step" id="size_step3" style="opacity:.4;pointer-events:none">
-    <div class="step-title">③ Review & Export</div>
-    <div class="actions-row" style="justify-content:flex-start;gap:12px">
-      <div class="count-badge" id="size_mappedCount">0 mapped</div>
-      <div style="background:#e5393522;color:#ef9a9a;border:1px solid #e5393544;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600" id="size_unmappedCount">0 unmapped</div>
-      <button class="btn btn-export" onclick="exportSize('mapped')">📥 Export Mapped</button>
-      <button style="background:#e53935;color:#fff;padding:10px 20px;font-size:13px;border-radius:8px;border:none;cursor:pointer;font-weight:600" onclick="exportSize('unmapped')">⚠️ Export Unmapped</button>
+<div id="tab-size" class="bs-tab-content">
+<div class="bs-tab-panel">
+
+  <div class="step-card">
+    <div class="step-head"><span class="step-num">1</span>Upload Files</div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="form-label small fw-semibold">Best Secret Size Values File</div>
+        <div class="upload-zone" id="size_bsArea">
+          <input type="file" accept=".xlsx,.csv" onchange="handleFile('size_bs',this)">
+          <i class="fas fa-file-excel"></i><p><strong>BS Size Values</strong> — click or drop</p>
+          <div class="fname" id="size_bsFileName"></div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-label small fw-semibold">Philipp Plein Size File</div>
+        <div class="upload-zone" id="size_ppArea">
+          <input type="file" accept=".xlsx,.csv" onchange="handleFile('size_pp',this)">
+          <i class="fas fa-file-excel"></i><p><strong>PP Size File</strong> — click or drop</p>
+          <div class="fname" id="size_ppFileName"></div>
+        </div>
+      </div>
     </div>
-    <div class="section-label">✅ Mapped</div>
-    <div class="table-wrap"><table><thead><tr><th>PP Code</th><th>PP Microcategory</th><th>Gender</th><th>Size Type</th><th>PP Size</th><th>sizeRunAndSize</th><th>Category Code</th><th>valuesList</th><th>sizeRunAndSizeLabel</th></tr></thead>
-    <tbody id="size_mappedBody"></tbody></table></div>
-    <div class="section-label" style="color:#ef9a9a">❌ Unmapped</div>
-    <div class="table-wrap"><table><thead><tr><th>PP Code</th><th>PP Microcategory</th><th>Gender</th><th>Size Type</th><th>PP Size</th><th>sizeRunAndSize</th><th>Category Code</th><th>valuesList</th><th>sizeRunAndSizeLabel</th></tr></thead>
-    <tbody id="size_unmappedBody"></tbody></table></div></div>
+    <div id="size_uploadStatus" class="mt-2"></div>
+  </div>
+
+  <div class="step-card disabled" id="size_step2">
+    <div class="step-head"><span class="step-num">2</span>Run AI Mapping</div>
+    <div id="size_emptyRowsInfo" class="text-muted small mb-3"></div>
+    <button class="btn btn-gold" id="size_runBtn" onclick="runSizeMapping()" disabled>
+      <i class="fas fa-brain me-2"></i>Start AI Mapping
+    </button>
+    <div id="size_progressWrap" class="mt-3" style="display:none">
+      <div class="progress" style="height:8px;border-radius:99px">
+        <div class="progress-bar" id="size_progressBar" style="width:0%;background:var(--accent);border-radius:99px;transition:width .3s"></div>
+      </div>
+      <div class="small text-muted mt-1" id="size_progressLabel">Processing...</div>
+    </div>
+  </div>
+
+  <div class="step-card disabled" id="size_step3">
+    <div class="step-head"><span class="step-num">3</span>Review &amp; Export</div>
+    <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+      <span class="count-pill cp-gold" id="size_mappedCount">0 mapped</span>
+      <span class="count-pill cp-red" id="size_unmappedCount">0 unmapped</span>
+      <button class="btn btn-gold ms-auto" onclick="exportSize('mapped')"><i class="fas fa-file-download me-2"></i>Export Mapped</button>
+      <button class="btn btn-danger" onclick="exportSize('unmapped')"><i class="fas fa-exclamation-triangle me-2"></i>Export Unmapped</button>
+    </div>
+    <p class="small fw-semibold text-success mb-2"><i class="fas fa-check-circle me-1"></i>Mapped</p>
+    <div class="table-responsive mb-3" style="max-height:280px;border:1px solid #e5e7eb;border-radius:8px">
+      <table class="table table-sm table-bordered map-table mb-0">
+        <thead class="sticky-top"><tr><th>PP Code</th><th>PP Microcategory</th><th>Gender</th><th>Size Type</th><th>PP Size</th><th>sizeRunAndSize</th><th>Category Code</th><th>valuesList</th><th>sizeRunAndSizeLabel</th></tr></thead>
+        <tbody id="size_mappedBody"></tbody>
+      </table>
+    </div>
+    <p class="small fw-semibold text-danger mb-2"><i class="fas fa-times-circle me-1"></i>Unmapped</p>
+    <div class="table-responsive" style="max-height:280px;border:1px solid #e5e7eb;border-radius:8px">
+      <table class="table table-sm table-bordered map-table mb-0">
+        <thead class="sticky-top"><tr><th>PP Code</th><th>PP Microcategory</th><th>Gender</th><th>Size Type</th><th>PP Size</th><th>sizeRunAndSize</th><th>Category Code</th><th>valuesList</th><th>sizeRunAndSizeLabel</th></tr></thead>
+        <tbody id="size_unmappedBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
 </div>
 
 <!-- ===== CLOSURE ===== -->
-<div id="tab-closure" class="tab-content">
-  <div class="step">
-    <div class="step-title">① Upload Mapping Files</div>
-    <div class="grid2">
-      <div><div style="font-size:11px;color:#888;margin-bottom:6px">Best Secret Closure Values File</div>
-        <div class="upload-area" id="clo_bsArea"><input type="file" accept=".xlsx,.csv" onchange="handleFile('clo_bs',this)">
-        <div class="upload-icon">📂</div><div class="upload-label">Drop <span>BS Closure Values</span> here</div>
-        <div class="file-name" id="clo_bsFileName"></div></div></div>
-      <div><div style="font-size:11px;color:#888;margin-bottom:6px">Philipp Plein Closure File</div>
-        <div class="upload-area" id="clo_ppArea"><input type="file" accept=".xlsx,.csv" onchange="handleFile('clo_pp',this)">
-        <div class="upload-icon">📂</div><div class="upload-label">Drop <span>PP Closure File</span> here</div>
-        <div class="file-name" id="clo_ppFileName"></div></div></div>
-    </div>
-    <div id="clo_uploadStatus"></div>
-  </div>
-  <div class="step" id="clo_step2" style="opacity:.4;pointer-events:none">
-    <div class="step-title">② Analyse & Generate SKU List</div>
-    <div style="font-size:12px;color:#888;margin-bottom:12px">
-      First propagates closure values to same-style SKUs. Then generates the list of SKUs needing image review.
-    </div>
-    <button class="btn btn-primary" id="clo_analyseBtn" onclick="closureAnalyse()" disabled>🔍 Analyse Files</button>
-    <div id="clo_analyseStatus"></div>
-    <div id="clo_skuListWrap" class="hidden">
-      <div style="font-size:13px;color:#aaa;margin-top:14px;margin-bottom:6px" id="clo_skuSummary"></div>
-      <div class="sku-list" id="clo_skuList"></div>
-      <div style="margin-top:10px">
-        <button class="btn btn-secondary" onclick="copySkuList()">📋 Copy SKU List</button>
-      </div>
-    </div>
-  </div>
-  <div class="step" id="clo_step3" style="opacity:.4;pointer-events:none">
-    <div class="step-title">③ Upload Images & Info File</div>
-    <div style="font-size:12px;color:#888;margin-bottom:14px">
-      Upload all product images (SKU in filename) and the additional info file. You can upload images in multiple batches.
-    </div>
-    <div class="grid2">
-      <div>
-        <div style="font-size:11px;color:#888;margin-bottom:6px">Product Images (multiple, SKU in filename)</div>
-        <div class="img-upload-area" id="clo_imgArea">
-          <input type="file" accept="image/*" multiple onchange="handleImages(this)">
-          <div class="upload-icon">🖼️</div>
-          <div class="upload-label">Drop <span>product images</span> here</div>
-          <div class="file-name" id="clo_imgFileName"></div>
+<div id="tab-closure" class="bs-tab-content">
+<div class="bs-tab-panel">
+
+  <div class="step-card">
+    <div class="step-head"><span class="step-num">1</span>Upload Mapping Files</div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="form-label small fw-semibold">Best Secret Closure Values File</div>
+        <div class="upload-zone" id="clo_bsArea">
+          <input type="file" accept=".xlsx,.csv" onchange="handleFile('clo_bs',this)">
+          <i class="fas fa-file-excel"></i><p><strong>BS Closure Values</strong> — click or drop</p>
+          <div class="fname" id="clo_bsFileName"></div>
         </div>
       </div>
-      <div>
-        <div style="font-size:11px;color:#888;margin-bottom:6px">Additional Info File (SKU details)</div>
-        <div class="upload-area" id="clo_infoArea"><input type="file" accept=".xlsx,.csv" onchange="handleFile('clo_info',this)">
-        <div class="upload-icon">📂</div><div class="upload-label">Drop <span>Info File</span> here</div>
-        <div class="file-name" id="clo_infoFileName"></div></div>
+      <div class="col-md-6">
+        <div class="form-label small fw-semibold">Philipp Plein Closure File</div>
+        <div class="upload-zone" id="clo_ppArea">
+          <input type="file" accept=".xlsx,.csv" onchange="handleFile('clo_pp',this)">
+          <i class="fas fa-file-excel"></i><p><strong>PP Closure File</strong> — click or drop</p>
+          <div class="fname" id="clo_ppFileName"></div>
+        </div>
       </div>
     </div>
-    <div id="clo_imgStatus"></div>
-    <div style="margin-top:14px">
-      <button class="btn btn-primary" id="clo_runBtn" onclick="runClosureMapping()" disabled>🤖 Start AI Closure Mapping</button>
-    </div>
-    <div id="clo_progressWrap" class="hidden" style="margin-top:12px">
-      <div style="font-size:12px;color:#888" id="clo_progressLabel">Processing...</div>
-      <div class="progress-wrap"><div class="progress-bar" id="clo_progressBar" style="width:0%"></div></div>
-    </div>
+    <div id="clo_uploadStatus" class="mt-2"></div>
   </div>
-  <div class="step" id="clo_step4" style="opacity:.4;pointer-events:none">
-    <div class="step-title">④ Review & Export</div>
-    <div class="actions-row">
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <div class="count-badge" id="clo_mappedCount">0 mapped</div>
-        <div class="count-badge-blue" id="clo_propagatedCount">0 propagated</div>
-      </div>
-      <button class="btn btn-export" onclick="exportClosure()">📥 Export Excel</button>
-    </div>
-    <div class="table-wrap">
-      <table><thead><tr><th>Model</th><th>SKU</th><th>Title</th><th>Micro</th><th>Code 1</th><th>Label 1</th><th>Source</th><th>Reasoning</th></tr></thead>
-      <tbody id="clo_resultsBody"></tbody></table>
-    </div>
-  </div>
-</div>
 
+  <div class="step-card disabled" id="clo_step2">
+    <div class="step-head"><span class="step-num">2</span>Analyse &amp; Generate SKU List</div>
+    <p class="text-muted small mb-3">Propagates closure values to same-style SKUs, then generates the list of SKUs needing image review.</p>
+    <button class="btn btn-gold" id="clo_analyseBtn" onclick="closureAnalyse()" disabled>
+      <i class="fas fa-search me-2"></i>Analyse Files
+    </button>
+    <div id="clo_analyseStatus" class="mt-2"></div>
+    <div id="clo_skuListWrap" style="display:none" class="mt-3">
+      <p class="small mb-1" id="clo_skuSummary"></p>
+      <div class="sku-list-box" id="clo_skuList"></div>
+      <button class="btn btn-outline-secondary btn-sm mt-2" onclick="copySkuList()">
+        <i class="fas fa-copy me-1"></i>Copy SKU List
+      </button>
+    </div>
+  </div>
+
+  <div class="step-card disabled" id="clo_step3">
+    <div class="step-head"><span class="step-num">3</span>Upload Images &amp; Info File</div>
+    <p class="text-muted small mb-3">Upload product images (SKU in filename) and the additional info file. You can upload images in multiple batches.</p>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="form-label small fw-semibold">Product Images (SKU in filename)</div>
+        <div class="img-zone" id="clo_imgArea">
+          <input type="file" accept="image/*" multiple onchange="handleImages(this)">
+          <i class="fas fa-images" style="font-size:1.8rem;color:#9ca3af;display:block;margin-bottom:8px"></i>
+          <p class="text-muted small m-0">Drop images here or click to browse</p>
+          <div class="fname" id="clo_imgFileName" style="font-size:.8rem;color:#16a34a;margin-top:5px;font-weight:600"></div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-label small fw-semibold">Additional Info File (SKU details)</div>
+        <div class="upload-zone" id="clo_infoArea">
+          <input type="file" accept=".xlsx,.csv" onchange="handleFile('clo_info',this)">
+          <i class="fas fa-file-excel"></i><p><strong>Info File</strong> — click or drop</p>
+          <div class="fname" id="clo_infoFileName"></div>
+        </div>
+      </div>
+    </div>
+    <div id="clo_imgStatus" class="mt-2"></div>
+    <button class="btn btn-gold mt-3" id="clo_runBtn" onclick="runClosureMapping()" disabled>
+      <i class="fas fa-brain me-2"></i>Start AI Closure Mapping
+    </button>
+    <div id="clo_progressWrap" class="mt-3" style="display:none">
+      <div class="progress" style="height:8px;border-radius:99px">
+        <div class="progress-bar" id="clo_progressBar" style="width:0%;background:var(--accent);border-radius:99px;transition:width .3s"></div>
+      </div>
+      <div class="small text-muted mt-1" id="clo_progressLabel">Processing...</div>
+    </div>
+  </div>
+
+  <div class="step-card disabled" id="clo_step4">
+    <div class="step-head"><span class="step-num">4</span>Review &amp; Export</div>
+    <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+      <span class="count-pill cp-gold" id="clo_mappedCount">0 mapped</span>
+      <span class="count-pill cp-blue" id="clo_propagatedCount">0 propagated</span>
+      <button class="btn btn-gold ms-auto" onclick="exportClosure()"><i class="fas fa-file-download me-2"></i>Export Excel</button>
+    </div>
+    <div class="table-responsive" style="max-height:380px;border:1px solid #e5e7eb;border-radius:8px">
+      <table class="table table-sm table-bordered map-table mb-0">
+        <thead class="sticky-top"><tr><th>Model</th><th>SKU</th><th>Title</th><th>Micro</th><th>Code 1</th><th>Label 1</th><th>Source</th><th>Reasoning</th></tr></thead>
+        <tbody id="clo_resultsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
 <script>
 const API_URL = "/best-secret/api/messages";
 
@@ -355,16 +507,13 @@ let S={
   mat_bs:[],mat_pp:[],mat_empty:[],mat_results:[],
   size_bs:[],size_pp:[],size_empty:[],size_mapped:[],size_unmapped:[],
   clo_bs:[],clo_pp:[],clo_info:[],
-  clo_images:{},
-  clo_needsMapping:[],
-  clo_results:[],
-  clo_propagatedCount:0
+  clo_images:{},clo_needsMapping:[],clo_results:[],clo_propagatedCount:0
 };
 
 function switchTab(name){
   const names=['category','description','shopcategory','material','size','closure'];
-  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',names[i]===name));
-  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.bs-tab').forEach((t,i)=>t.classList.toggle('active',names[i]===name));
+  document.querySelectorAll('.bs-tab-content').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
 }
 
@@ -378,9 +527,9 @@ function handleFile(key,input){
       document.getElementById(key+'FileName').textContent=`✓ ${file.name} (${S[key].length} rows)`;
       document.getElementById(key+'Area').classList.add('done');
       const prefix=key.split('_')[0];
-      if(prefix==='clo') checkClosureReady();
+      if(prefix==='clo')checkClosureReady();
       else checkReady(prefix);
-    }catch(err){showStatus(key.split('_')[0]+'_uploadStatus','error',`Error: ${err.message}`);}
+    }catch(err){showStatus(key.split('_')[0]+'_uploadStatus','danger',`Error: ${err.message}`);}
   };
   reader.readAsBinaryString(file);
 }
@@ -410,12 +559,17 @@ function handleImages(input){
   });
 }
 
-function getStyle(sku){
-  const parts=sku.split('-');
-  return parts.length>=2?parts[1].toUpperCase():'';
+function getStyle(sku){const parts=sku.split('-');return parts.length>=2?parts[1].toUpperCase():'';}
+
+function showStatus(id,type,msg){
+  const el=document.getElementById(id);
+  if(el)el.innerHTML=`<div class="alert alert-${type} py-2 px-3 mb-0 small">${msg}</div>`;
 }
 
-function showStatus(id,type,msg){const el=document.getElementById(id);if(el)el.innerHTML=`<div class="status ${type}">${msg}</div>`;}
+function enableStep(id){
+  const el=document.getElementById(id);
+  if(el)el.classList.remove('disabled');
+}
 
 function hasMicrocat(r){return r.PP_MICROCATEGORY&&r.PP_MICROCATEGORY.toString().trim()!=='';}
 
@@ -423,26 +577,26 @@ function checkReady(prefix){
   const bs=S[prefix+'_bs'],pp=S[prefix+'_pp'];
   if(!bs.length||!pp.length)return;
   let emptyFn,skipCol='PP_MICROCATEGORY';
-  if(prefix==='cat') emptyFn=r=>(!r.categoryCode||r.categoryCode.toString().trim()==='')&&hasMicrocat(r);
-  else if(prefix==='desc') emptyFn=r=>(!r.description||r.description.toString().trim()==='')&&hasMicrocat(r);
-  else if(prefix==='shop') emptyFn=r=>(!r.BS_SHOP_CATEGORY_1||r.BS_SHOP_CATEGORY_1.toString().trim()==='')&&hasMicrocat(r);
+  if(prefix==='cat')emptyFn=r=>(!r.categoryCode||r.categoryCode.toString().trim()==='')&&hasMicrocat(r);
+  else if(prefix==='desc')emptyFn=r=>(!r.description||r.description.toString().trim()==='')&&hasMicrocat(r);
+  else if(prefix==='shop')emptyFn=r=>(!r.BS_SHOP_CATEGORY_1||r.BS_SHOP_CATEGORY_1.toString().trim()==='')&&hasMicrocat(r);
   else if(prefix==='mat'){skipCol='PP_MATERIAL';emptyFn=r=>(!r.code||r.code.toString().trim()==='')&&r.PP_MATERIAL&&r.PP_MATERIAL.toString().trim()!=='';}
   else if(prefix==='size'){skipCol='valuesList';emptyFn=r=>(!r.sizeRunAndSize||r.sizeRunAndSize.toString().trim()==='')&&r.valuesList&&r.valuesList.toString().trim()!=='';}
   S[prefix+'_empty']=pp.filter(emptyFn);
   const noSkip=pp.filter(r=>!r[skipCol]||r[skipCol].toString().trim()==='').length;
   const filled=pp.length-S[prefix+'_empty'].length-noSkip;
   document.getElementById(prefix+'_emptyRowsInfo').innerHTML=
-    `Found <strong style="color:#c8a96e">${S[prefix+'_empty'].length}</strong> unmapped rows out of ${pp.length} total (${filled} already mapped, ${noSkip} skipped).`;
-  document.getElementById(prefix+'_step2').style.cssText='opacity:1;pointer-events:auto;';
+    `Found <strong style="color:var(--accent)">${S[prefix+'_empty'].length}</strong> unmapped rows out of ${pp.length} total (${filled} already mapped, ${noSkip} skipped).`;
+  enableStep(prefix+'_step2');
   document.getElementById(prefix+'_runBtn').disabled=false;
-  showStatus(prefix+'_uploadStatus','success','✓ Both files loaded!');
+  showStatus(prefix+'_uploadStatus','success','✓ Both files loaded successfully.');
 }
 
 function checkClosureReady(){
   if(S.clo_bs.length&&S.clo_pp.length){
-    document.getElementById('clo_step2').style.cssText='opacity:1;pointer-events:auto;';
+    enableStep('clo_step2');
     document.getElementById('clo_analyseBtn').disabled=false;
-    showStatus('clo_uploadStatus','success','✓ Both files loaded!');
+    showStatus('clo_uploadStatus','success','✓ Both files loaded successfully.');
   }
 }
 
@@ -460,203 +614,110 @@ function closureAnalyse(){
     const style=getStyle((r.PP_SKU_EXAMPLE||'').toString().toUpperCase());
     if(style&&!styleMap[style])styleMap[style]={code:r.code_1.toString(),label:(r.label_1||'').toString()};
   });
-  const propagated=[];
-  const stillNeeds=[];
+  const propagated=[],stillNeeds=[];
   needsMapping.forEach(r=>{
     const style=getStyle((r.PP_SKU_EXAMPLE||'').toString().toUpperCase());
-    if(style&&styleMap[style]){
-      propagated.push({...r,code_1:styleMap[style].code,label_1:styleMap[style].label,_source:'style_propagated',_reasoning:`Same style ${style} as already-mapped SKU`});
-    } else {
-      stillNeeds.push(r);
-    }
+    if(style&&styleMap[style])propagated.push({...r,code_1:styleMap[style].code,label_1:styleMap[style].label,_source:'style_propagated',_reasoning:`Same style ${style}`});
+    else stillNeeds.push(r);
   });
   const needsImages=stillNeeds.filter(r=>r.PP_HAS_PICTURE?.toString()==='1');
-  S.clo_needsMapping=needsImages;
-  S.clo_results=propagated;
-  S.clo_propagatedCount=propagated.length;
+  S.clo_needsMapping=needsImages;S.clo_results=propagated;S.clo_propagatedCount=propagated.length;
   const skus=[...new Set(needsImages.map(r=>(r.PP_SKU_EXAMPLE||'').toString()))];
   document.getElementById('clo_skuSummary').innerHTML=
-    `<strong style="color:#c8a96e">${propagated.length}</strong> rows auto-mapped via style propagation. &nbsp;
-     <strong style="color:#7eb3ff">${skus.length}</strong> SKUs need image review. &nbsp;
-     <strong style="color:#888">${stillNeeds.length-needsImages.length}</strong> rows skipped (no picture, no style match).`;
+    `<strong style="color:var(--accent)">${propagated.length}</strong> rows auto-mapped via style propagation · <strong>${skus.length}</strong> SKUs need image review · <span class="text-muted">${stillNeeds.length-needsImages.length} skipped</span>`;
   document.getElementById('clo_skuList').textContent=skus.join('\n');
-  document.getElementById('clo_skuListWrap').classList.remove('hidden');
-  document.getElementById('clo_step3').style.cssText='opacity:1;pointer-events:auto;';
-  showStatus('clo_analyseStatus','success','✓ Analysis complete!');
+  document.getElementById('clo_skuListWrap').style.display='';
+  enableStep('clo_step3');
+  showStatus('clo_analyseStatus','success','✓ Analysis complete.');
 }
 
 function copySkuList(){
-  const text=document.getElementById('clo_skuList').textContent;
-  navigator.clipboard.writeText(text).then(()=>showStatus('clo_analyseStatus','success','✓ SKU list copied!'));
+  navigator.clipboard.writeText(document.getElementById('clo_skuList').textContent)
+    .then(()=>showStatus('clo_analyseStatus','success','✓ SKU list copied to clipboard.'));
 }
 
 async function runClosureMapping(){
   document.getElementById('clo_runBtn').disabled=true;
-  document.getElementById('clo_progressWrap').classList.remove('hidden');
-  document.getElementById('clo_step4').style.cssText='opacity:.4;pointer-events:none;';
+  document.getElementById('clo_progressWrap').style.display='';
+  document.getElementById('clo_step4').classList.add('disabled');
   const bsList=S.clo_bs.map(r=>`${r.code}|${r.label}`).join('\n');
   const infoMap={};
-  S.clo_info.forEach(r=>{
-    const sku=(r.SKU||'').toString().toUpperCase().trim();
-    if(sku)infoMap[sku]=r;
-  });
+  S.clo_info.forEach(r=>{const sku=(r.SKU||'').toString().toUpperCase().trim();if(sku)infoMap[sku]=r;});
   const bySku={};
-  S.clo_needsMapping.forEach(r=>{
-    const sku=(r.PP_SKU_EXAMPLE||'').toString().toUpperCase().trim();
-    if(!bySku[sku])bySku[sku]=[];
-    bySku[sku].push(r);
-  });
-  const skus=Object.keys(bySku);
-  const total=skus.length;
+  S.clo_needsMapping.forEach(r=>{const sku=(r.PP_SKU_EXAMPLE||'').toString().toUpperCase().trim();if(!bySku[sku])bySku[sku]=[];bySku[sku].push(r);});
+  const skus=Object.keys(bySku),total=skus.length;
   for(let i=0;i<total;i++){
     const sku=skus[i];
     document.getElementById('clo_progressBar').style.width=Math.round((i/total)*100)+'%';
     document.getElementById('clo_progressLabel').textContent=`Processing SKU ${i+1} of ${total}: ${sku}`;
-    const rows=bySku[sku];
-    const info=infoMap[sku]||{};
-    const images=S.clo_images[sku]||[];
+    const rows=bySku[sku],info=infoMap[sku]||{},images=S.clo_images[sku]||[];
     const ctx=`SKU: ${sku}\nTitle: ${rows[0].PP_TITLE_EXAMPLE||info.NAME||''}\nCategory: ${rows[0].PP_CATEGORY_NAME_EXAMPLE||info.CATEGORY||''}\nMicrocategory: ${rows[0].PP_MICROCATEGORY_NAME_EXAMPLE||info.MICROCATEGORY||''}\nDescription: ${info['DESCRIPTION (ENG)']||''}\nComposition: ${info.COMPOSITION||''}`;
     const content=[];
-    images.slice(0,4).forEach(img=>{
-      content.push({type:'image',source:{type:'base64',media_type:img.mimeType,data:img.base64}});
-    });
-    content.push({type:'text',text:`You are a fashion product closure/fastening expert. Identify the PRIMARY closure or fastening mechanism for this product.\n\nPRODUCT INFO:\n${ctx}\n\nAVAILABLE BEST SECRET CLOSURE CODES (code|label):\n${bsList}\n\n${images.length>0?'Examine the images carefully to identify the closure type.':'No images available — use the product info above to determine the closure.'}\n\nRULES:\n- Pick only ONE code (the main/primary closure)\n- Only use codes from the provided list\n- If truly impossible to determine → use "NO_MATCH"\n\nReturn ONLY JSON: {"code":"6832","label":"Buckle closure","reasoning":"visible buckle on belt"}`});
+    images.slice(0,4).forEach(img=>{content.push({type:'image',source:{type:'base64',media_type:img.mimeType,data:img.base64}});});
+    content.push({type:'text',text:`You are a fashion product closure/fastening expert. Identify the PRIMARY closure for this product.\n\nPRODUCT INFO:\n${ctx}\n\nAVAILABLE BS CLOSURE CODES (code|label):\n${bsList}\n\n${images.length>0?'Examine the images carefully.':'No images — use the product info.'}\n\nRules: pick ONE code, only from the list, if impossible use "NO_MATCH".\nReturn ONLY JSON: {"code":"6832","label":"Buckle closure","reasoning":"..."}`});
     try{
-      const res=await fetch(API_URL,{
-        method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:300,messages:[{role:"user",content}]})
-      });
+      const res=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:300,messages:[{role:"user",content}]})});
       const data=await res.json();
-      if(data.error)throw new Error(`API error: ${data.error.type} — ${data.error.message}`);
-      if(!data.content||!Array.isArray(data.content))throw new Error(`Unexpected API response: ${JSON.stringify(data).slice(0,150)}`);
+      if(data.error)throw new Error(`${data.error.type}: ${data.error.message}`);
       const text=data.content.map(c=>c.text||'').join('');
       let parsed;
-      try{parsed=JSON.parse(text.replace(/```json|```/g,'').trim());}
-      catch(parseErr){const m=text.match(/\{[\s\S]*\}/);if(m)parsed=JSON.parse(m[0]);else throw new Error('Could not parse: '+text.slice(0,100));}
+      try{parsed=JSON.parse(text.replace(/```json|```/g,'').trim());}catch(e){const m=text.match(/\{[\s\S]*\}/);if(m)parsed=JSON.parse(m[0]);else throw new Error('Parse failed');}
       if(parsed.code&&parsed.code!=='NO_MATCH'){
-        rows.forEach(r=>{S.clo_results.push({...r,code_1:parsed.code,label_1:parsed.label,_source:images.length>0?'image':'info_file',_reasoning:parsed.reasoning});});
+        rows.forEach(r=>S.clo_results.push({...r,code_1:parsed.code,label_1:parsed.label,_source:images.length>0?'image':'info_file',_reasoning:parsed.reasoning}));
         const style=getStyle(sku);
-        if(style){
-          S.clo_needsMapping.forEach(r2=>{
-            const sku2=(r2.PP_SKU_EXAMPLE||'').toString().toUpperCase();
-            if(getStyle(sku2)===style&&!S.clo_results.find(x=>x.PP_SKU_EXAMPLE===r2.PP_SKU_EXAMPLE)){
-              S.clo_results.push({...r2,code_1:parsed.code,label_1:parsed.label,_source:'style_propagated_post',_reasoning:`Same style ${style}, mapped from ${sku}`});
-            }
-          });
-        }
+        if(style)S.clo_needsMapping.forEach(r2=>{const sku2=(r2.PP_SKU_EXAMPLE||'').toString().toUpperCase();if(getStyle(sku2)===style&&!S.clo_results.find(x=>x.PP_SKU_EXAMPLE===r2.PP_SKU_EXAMPLE))S.clo_results.push({...r2,code_1:parsed.code,label_1:parsed.label,_source:'style_propagated_post',_reasoning:`Same style ${style}`});});
       }
-    }catch(err){
-      console.error('Error processing SKU',sku,err);
-      rows.forEach(r=>{S.clo_results.push({...r,code_1:'ERROR',label_1:'',_source:'error',_reasoning:`Error: ${err.message}`});});
-    }
+    }catch(err){rows.forEach(r=>S.clo_results.push({...r,code_1:'ERROR',label_1:'',_source:'error',_reasoning:`Error: ${err.message}`}));}
   }
   document.getElementById('clo_progressBar').style.width='100%';
-  document.getElementById('clo_progressLabel').textContent=`✓ Done! ${S.clo_results.length} rows mapped.`;
+  document.getElementById('clo_progressLabel').textContent=`✓ Done — ${S.clo_results.length} rows mapped.`;
   renderClosureResults();
 }
 
 function renderClosureResults(){
   const tbody=document.getElementById('clo_resultsBody');tbody.innerHTML='';
-  let propagatedCount=0;
-  S.clo_results.forEach((row)=>{
-    const isPropagated=row._source==='style_propagated'||row._source==='style_propagated_post';
-    const isImage=row._source==='image';
-    if(isPropagated)propagatedCount++;
+  let propCount=0;
+  S.clo_results.forEach(row=>{
+    const isProp=row._source==='style_propagated'||row._source==='style_propagated_post';
+    const isImg=row._source==='image';
+    if(isProp)propCount++;
     const tr=document.createElement('tr');
-    if(isPropagated)tr.classList.add('propagated-row');
-    else if(isImage)tr.classList.add('image-row');
-    else tr.classList.add('info-row');
-    const srcIcon=isPropagated?'🔗 Style':isImage?'🖼 Image':'📄 Info';
-    tr.innerHTML=`<td>${row.PP_MODEL||''}</td><td class="bs-code">${row.PP_SKU_EXAMPLE||''}</td>
-      <td style="font-size:11px;max-width:140px">${row.PP_TITLE_EXAMPLE||''}</td>
-      <td class="pp-cat">${row.PP_MICROCATEGORY_NAME_EXAMPLE||''}</td>
-      <td class="bs-code">${row.code_1}</td><td>${row.label_1}</td>
-      <td><span style="font-size:10px;background:#2a2a2a;padding:2px 6px;border-radius:4px">${srcIcon}</span></td>
-      <td class="reasoning">${row._reasoning||''}</td>`;
+    if(isProp)tr.classList.add('prop-row');else if(isImg)tr.classList.add('img-row');else tr.classList.add('info-row');
+    const srcBadge=isProp?'<span class="badge text-bg-success">🔗 Style</span>':isImg?'<span class="badge text-bg-warning text-dark">🖼 Image</span>':'<span class="badge text-bg-info text-dark">📄 Info</span>';
+    tr.innerHTML=`<td>${row.PP_MODEL||''}</td><td><code>${row.PP_SKU_EXAMPLE||''}</code></td>
+      <td style="font-size:.78rem;max-width:140px">${row.PP_TITLE_EXAMPLE||''}</td>
+      <td style="color:var(--accent);font-weight:600">${row.PP_MICROCATEGORY_NAME_EXAMPLE||''}</td>
+      <td><code>${row.code_1}</code></td><td>${row.label_1}</td>
+      <td>${srcBadge}</td>
+      <td class="reasoning-note">${row._reasoning||''}</td>`;
     tbody.appendChild(tr);
   });
   document.getElementById('clo_mappedCount').textContent=`${S.clo_results.length} mapped`;
-  document.getElementById('clo_propagatedCount').textContent=`${propagatedCount} propagated`;
-  document.getElementById('clo_step4').style.cssText='opacity:1;pointer-events:auto;';
+  document.getElementById('clo_propagatedCount').textContent=`${propCount} propagated`;
+  enableStep('clo_step4');
 }
 
 function exportClosure(){
-  const data=S.clo_results.map(r=>({
-    PP_MODEL:r.PP_MODEL,PP_SKU_EXAMPLE:r.PP_SKU_EXAMPLE,PP_HAS_PICTURE:r.PP_HAS_PICTURE,
-    PP_TITLE_EXAMPLE:r.PP_TITLE_EXAMPLE,PP_CATEGORY_EXAMPLE:r.PP_CATEGORY_EXAMPLE,
-    PP_CATEGORY_NAME_EXAMPLE:r.PP_CATEGORY_NAME_EXAMPLE,PP_MICROCATEGORY_EXAMPLE:r.PP_MICROCATEGORY_EXAMPLE,
-    PP_MICROCATEGORY_NAME_EXAMPLE:r.PP_MICROCATEGORY_NAME_EXAMPLE,
-    code_1:r.code_1,code_2:'',label_1:r.label_1
-  }));
-  doExport(data,'Closure Mapping','BS_ClosureMapping');
+  doExport(S.clo_results.map(r=>({PP_MODEL:r.PP_MODEL,PP_SKU_EXAMPLE:r.PP_SKU_EXAMPLE,PP_HAS_PICTURE:r.PP_HAS_PICTURE,PP_TITLE_EXAMPLE:r.PP_TITLE_EXAMPLE,PP_CATEGORY_EXAMPLE:r.PP_CATEGORY_EXAMPLE,PP_CATEGORY_NAME_EXAMPLE:r.PP_CATEGORY_NAME_EXAMPLE,PP_MICROCATEGORY_EXAMPLE:r.PP_MICROCATEGORY_EXAMPLE,PP_MICROCATEGORY_NAME_EXAMPLE:r.PP_MICROCATEGORY_NAME_EXAMPLE,code_1:r.code_1,code_2:'',label_1:r.label_1})),'Closure Mapping','BS_ClosureMapping');
 }
 
 function findBestGenderFallback(gender,microcat,bsData){
   const mc=(microcat||'').toLowerCase();
-  const genderFilter=r=>{
-    const fl=(r.full_label||r.label||'').toLowerCase();
-    if(gender==='M')return fl.includes('men')&&!fl.includes('women');
-    if(gender==='W')return fl.includes('women');
-    if(gender==='U')return !fl.includes('women')&&!fl.includes('men');
-    if(gender==='G'||gender==='E')return fl.includes('girl')||fl.includes('kids')||fl.includes('children');
-    if(gender==='A'||gender==='B')return fl.includes('boy')||fl.includes('kids')||fl.includes('children');
-    if(gender==='C')return fl.includes('kids')||fl.includes('children')||fl.includes('boy')||fl.includes('girl');
-    if(gender==='D')return fl.includes('baby')||fl.includes('kids')||fl.includes('children');
-    return true;
-  };
-  const candidates=bsData.filter(r=>r.level>=3&&genderFilter(r));
-  if(!candidates.length)return null;
-  const mcWords=mc.split(/\s+/);
-  let best=null,bestScore=-1;
-  candidates.forEach(r=>{
-    const fl=(r.full_label||r.label||'').toLowerCase();
-    const score=mcWords.filter(w=>w.length>2&&fl.includes(w)).length;
-    if(score>bestScore){bestScore=score;best=r;}
-  });
-  const chosen=best||candidates[0];
-  return{code:chosen.code,full_label:chosen.full_label||chosen.label,reasoning:`Gender fallback: best match for "${microcat}" with gender ${gender}`};
+  const gf=r=>{const fl=(r.full_label||r.label||'').toLowerCase();if(gender==='M')return fl.includes('men')&&!fl.includes('women');if(gender==='W')return fl.includes('women');if(gender==='U')return!fl.includes('women')&&!fl.includes('men');return true;};
+  const cands=bsData.filter(r=>r.level>=3&&gf(r));if(!cands.length)return null;
+  const mcW=mc.split(/\s+/);let best=null,bs=-1;
+  cands.forEach(r=>{const fl=(r.full_label||r.label||'').toLowerCase();const s=mcW.filter(w=>w.length>2&&fl.includes(w)).length;if(s>bs){bs=s;best=r;}});
+  const c=best||cands[0];return{code:c.code,full_label:c.full_label||c.label,reasoning:`Gender fallback for "${microcat}" gender ${gender}`};
 }
 
-function findBestShopGenderFallback(gender,microcat,shopBs){
-  const mc=(microcat||'').toLowerCase();
-  const genderFilter=c=>{
-    const code=(c.code||'').toLowerCase();
-    if(gender==='M')return code.startsWith('men');
-    if(gender==='W')return code.startsWith('women');
-    if(gender==='U')return !code.startsWith('women');
-    if(gender==='G'||gender==='E')return code.includes('girl')||code.includes('kid')||code.includes('kinder');
-    if(gender==='A'||gender==='B')return code.includes('boy')||code.includes('jungen')||code.includes('kid')||code.includes('kinder');
-    if(gender==='C')return code.includes('kid')||code.includes('kinder')||code.includes('children');
-    if(gender==='D')return code.includes('baby')||code.includes('kid')||code.includes('kinder');
-    return true;
-  };
-  const candidates=shopBs.filter(genderFilter);
-  if(!candidates.length)return null;
-  const mcWords=mc.split(/\s+/);
-  let best=null,bestScore=-1;
-  candidates.forEach(r=>{
-    const lbl=(r.label||'').toLowerCase();
-    const score=mcWords.filter(w=>w.length>2&&lbl.includes(w)).length;
-    if(score>bestScore){bestScore=score;best=r;}
-  });
-  const chosen=best||candidates[0];
-  return{cat1:chosen.code,cat2:'',reasoning:`Gender fallback: best match for "${microcat}" with gender ${gender}`};
-}
-
-function isWomensCategory(fullLabel){if(!fullLabel)return false;const l=fullLabel.toLowerCase();return l.includes('women')||l.includes('\\ women ')||l.includes('/ women');}
-function isMensCategory(fullLabel){if(!fullLabel)return false;const l=fullLabel.toLowerCase();return l.includes('\\ men ')||l.includes('/ men')||l.startsWith('men')||l.includes(' men ')||l.includes('menswear');}
-function isWomensShopCode(code){return(code||'').toLowerCase().startsWith('women');}
-function isMensShopCode(code){return(code||'').toLowerCase().startsWith('men');}
+function isWomensCategory(fl){if(!fl)return false;const l=fl.toLowerCase();return l.includes('women');}
+function isMensCategory(fl){if(!fl)return false;const l=fl.toLowerCase();return l.includes('\\ men ')||l.includes('/ men')||l.startsWith('men')||l.includes(' men ')||l.includes('menswear');}
+function isWomensShopCode(c){return(c||'').toLowerCase().startsWith('women');}
+function isMensShopCode(c){return(c||'').toLowerCase().startsWith('men');}
 function validateGenderCategory(gender,fullLabel){
   if(gender==='M'&&isWomensCategory(fullLabel))return false;
   if(gender==='W'&&isMensCategory(fullLabel))return false;
   if(gender==='U'&&isWomensCategory(fullLabel))return false;
-  return true;
-}
-function validateGenderShop(gender,cat1){
-  if(gender==='M'&&isWomensShopCode(cat1))return false;
-  if(gender==='W'&&isMensShopCode(cat1))return false;
-  if(gender==='U'&&isWomensShopCode(cat1))return false;
   return true;
 }
 
@@ -664,93 +725,34 @@ async function runCategoryMapping(){
   const bsList=S.cat_bs.map(r=>`${r.code}|${r.level}|${r.full_label||r.label}`).join('\n');
   await runMapping('cat',async(batch)=>{
     const items=batch.map((r,i)=>`${i+1}. Brand:${r.PP_BRAND}, MicroCategory:${r.PP_MICROCATEGORY}, Gender:${r.PP_GENDER}`).join('\n');
-    const prompt=`You are a fashion category mapping expert. Map each Philipp Plein product to the best matching Best Secret hierarchy category.
-BS HIERARCHY (code|level|full_label):
-${bsList}
-MAP THESE ITEMS:
-${items}
-RULES:
-- Prefer level 4 categories (most specific), minimum level 3
-- M→Men, W→Women, U→Unisex or no gender
-- For home/bath/non-apparel items look outside the Apparel hierarchy
-- Always use the correct gender-specific category based on PP_GENDER:
-  * M → MUST use Men's categories ONLY. It is STRICTLY FORBIDDEN to use Women's, Girls', Boys' or Children's categories for M
-  * W → MUST use Women's categories ONLY. It is STRICTLY FORBIDDEN to use Men's, Girls', Boys' or Children's categories for W
-  * U → Unisex/gender-neutral categories first; if none exists use Men's categories; ABSOLUTELY NEVER use Women's for Unisex
-  * A → Boys' categories; if none exists use general Kids/Children's categories
-  * B → Boys' categories; if none exists use general Kids/Children's categories
-  * C → Children's/Kids' categories; can also use Boys' or Girls' if no generic Kids option exists
-  * D → Baby categories; if none exists use general Kids/Children's categories
-  * E → Girls' categories; if none exists use general Kids/Children's categories
-  * G → Girls' categories; if none exists use general Kids/Children's categories
-- CRITICAL: Double-check your answer before returning — if PP_GENDER is M verify the selected category is under Men's, if PP_GENDER is W verify the selected category is under Women's. If you made a mistake correct it before returning.
-- BRAND RULES:
-  * PLEIN SPORT: First determine if the item is sport-functional or sport-lifestyle/casual:
-    - Sport-functional → prefer sport-specific BS categories
-    - Sport-lifestyle/casual → use standard non-sport BS categories
-  * PHILIPP PLEIN: NEVER use sport-specific categories. Always use standard fashion categories
-  * BILLIONAIRE: use the most suitable category regardless of sport/non-sport
-Return ONLY a JSON array with no markdown, no explanation:
-[{"item":1,"code":"C10306004","full_label":"Apparel \\\\ Men \\\\ Knitwear \\\\ Pullovers","reasoning":"..."}]`;
+    const prompt=`You are a fashion category mapping expert. Map each PP product to the best BS hierarchy category.\nBS HIERARCHY (code|level|full_label):\n${bsList}\nMAP THESE:\n${items}\nRULES:\n- Prefer level 4, min level 3\n- M→Men only, W→Women only, U→gender-neutral or Men, NEVER Women for U\n- PHILIPP PLEIN: never sport-specific categories\nReturn ONLY JSON array: [{"item":1,"code":"...","full_label":"...","reasoning":"..."}]`;
     const res=await callAPI(prompt);
     if(!Array.isArray(res))throw new Error('API did not return an array');
     const valid=[],violations=[];
-    res.forEach((item,idx)=>{
-      const o=batch[idx];if(!o)return;
-      if(!validateGenderCategory(o.PP_GENDER,item.full_label)){violations.push({item,o});}
-      else{valid.push({item,o});}
-    });
+    res.forEach((item,idx)=>{const o=batch[idx];if(!o)return;if(!validateGenderCategory(o.PP_GENDER,item.full_label))violations.push({item,o});else valid.push({item,o});});
     if(violations.length>0){
-      const retryItems=violations.map((v,i)=>`${i+1}. Brand:${v.o.PP_BRAND}, MicroCategory:${v.o.PP_MICROCATEGORY}, Gender:${v.o.PP_GENDER} — PREVIOUS WRONG ANSWER WAS: ${v.item.full_label} — THIS IS WRONG, find a ${v.o.PP_GENDER==='M'?'MEN\'S':v.o.PP_GENDER==='W'?'WOMEN\'S':'UNISEX OR MEN\'S'} category instead`).join('\n');
-      const retryPrompt=`You are a fashion category mapping expert. The following items were previously mapped to the WRONG gender category. You MUST find the most similar category but with the CORRECT gender.
-BS HIERARCHY (code|level|full_label):
-${bsList}
-ITEMS TO RETRY:
-${retryItems}
-ABSOLUTE RULES:
-- M → ONLY Men's categories, NEVER Women's
-- W → ONLY Women's categories, NEVER Men's
-- U → Unisex/gender-neutral first, then Men's, NEVER Women's
-- Pick the most semantically similar category that respects the gender rule
-- Minimum level 3, prefer level 4
-Return ONLY a JSON array: [{"item":1,"code":"...","full_label":"...","reasoning":"..."}]`;
-      try{
-        const retryRes=await callAPI(retryPrompt);
-        if(Array.isArray(retryRes)){
-          retryRes.forEach((item,idx)=>{
-            const v=violations[idx];if(!v)return;
-            if(validateGenderCategory(v.o.PP_GENDER,item.full_label)){valid.push({item,o:v.o});}
-            else{
-              const fallback=findBestGenderFallback(v.o.PP_GENDER,v.o.PP_MICROCATEGORY,S.cat_bs);
-              if(fallback)valid.push({item:fallback,o:v.o});
-            }
-          });
-        }
-      }catch(e){console.error('Retry failed',e);}
+      const retryItems=violations.map((v,i)=>`${i+1}. ${v.o.PP_BRAND}, ${v.o.PP_MICROCATEGORY}, Gender:${v.o.PP_GENDER} — WRONG: ${v.item.full_label} — fix to correct gender`).join('\n');
+      try{const rr=await callAPI(`Fix gender violations. BS HIERARCHY:\n${bsList}\nFIX:\n${retryItems}\nReturn ONLY JSON array: [{"item":1,"code":"...","full_label":"...","reasoning":"..."}]`);
+      if(Array.isArray(rr))rr.forEach((item,idx)=>{const v=violations[idx];if(!v)return;if(validateGenderCategory(v.o.PP_GENDER,item.full_label))valid.push({item,o:v.o});else{const fb=findBestGenderFallback(v.o.PP_GENDER,v.o.PP_MICROCATEGORY,S.cat_bs);if(fb)valid.push({item:fb,o:v.o});}});}catch(e){}
     }
-    return valid.map(({item,o})=>({
-      PP_BRAND:o.PP_BRAND,PP_MICROCATEGORY_CODE:o.PP_MICROCATEGORY_CODE,
-      PP_MICROCATEGORY:o.PP_MICROCATEGORY,PP_GENDER:o.PP_GENDER,
-      categoryCode:item.code,categoryLabel:(item.full_label||'').split('\\').pop().trim(),
-      categoryFullLabel:item.full_label,reasoning:item.reasoning
-    }));
+    return valid.map(({item,o})=>({PP_BRAND:o.PP_BRAND,PP_MICROCATEGORY_CODE:o.PP_MICROCATEGORY_CODE,PP_MICROCATEGORY:o.PP_MICROCATEGORY,PP_GENDER:o.PP_GENDER,categoryCode:item.code,categoryLabel:(item.full_label||'').split('\\').pop().trim(),categoryFullLabel:item.full_label,reasoning:item.reasoning}));
   });
 }
 function renderCategoryResults(){
   const tbody=document.getElementById('cat_resultsBody');tbody.innerHTML='';
   const opts=S.cat_bs.filter(r=>r.level>=3).map(r=>`<option value="${r.code}">${r.full_label||r.label}</option>`).join('');
   S.cat_results.forEach((row,idx)=>{
-    const gc=row.PP_GENDER==='M'?'badge-M':row.PP_GENDER==='W'?'badge-W':'badge-U';
+    const gc=row.PP_GENDER==='M'?'gb-M':row.PP_GENDER==='W'?'gb-W':'gb-U';
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${row.PP_BRAND}</td><td>${row.PP_MICROCATEGORY_CODE}</td><td class="pp-cat">${row.PP_MICROCATEGORY}</td>
-      <td><span class="badge ${gc}">${row.PP_GENDER}</span></td>
+    tr.innerHTML=`<td>${row.PP_BRAND}</td><td>${row.PP_MICROCATEGORY_CODE}</td><td style="color:var(--accent);font-weight:600">${row.PP_MICROCATEGORY}</td>
+      <td><span class="gender-badge ${gc}">${row.PP_GENDER}</span></td>
       <td><select onchange="S.cat_results[${idx}].categoryCode=this.value"><option value="${row.categoryCode}" selected>${row.categoryFullLabel||row.categoryCode}</option>${opts}</select>
-      <div class="reasoning">${row.reasoning||''}</div></td>
-      <td class="bs-code">${row.categoryFullLabel}</td>`;
+      <div class="reasoning-note">${row.reasoning||''}</div></td>
+      <td><code style="font-size:.75rem">${row.categoryFullLabel}</code></td>`;
     tbody.appendChild(tr);
   });
   document.getElementById('cat_mappedCount').textContent=`${S.cat_results.length} rows mapped`;
-  document.getElementById('cat_step3').style.cssText='opacity:1;pointer-events:auto;';
+  enableStep('cat_step3');
 }
 function exportCategory(){doExport(S.cat_results.map(r=>({PP_BRAND:r.PP_BRAND,PP_MICROCATEGORY_CODE:r.PP_MICROCATEGORY_CODE,PP_MICROCATEGORY:r.PP_MICROCATEGORY,PP_GENDER:r.PP_GENDER,categoryCode:r.categoryCode})),'Category Mapping','BS_CategoryMapping');}
 
@@ -758,39 +760,10 @@ async function runDescriptionMapping(){
   const bsByVL={};
   S.desc_bs.forEach(r=>{const v=r.valuesList?.toString().trim()||'';if(!bsByVL[v])bsByVL[v]=[];bsByVL[v].push(r);});
   await runMapping('desc',async(batch)=>{
-    const items=batch.map((r,i)=>{
-      const vl=(r.valuesList?.toString().trim()||'');
-      const cands=(bsByVL[vl]||[]).map(b=>`${b.code}|${b.label}`).join(', ');
-      return `${i+1}. PP_MICROCATEGORY:"${r.PP_MICROCATEGORY}", valuesList:${vl}, candidates:[${cands||'NONE'}]`;
-    }).join('\n');
-    const prompt=`You are a fashion product description mapping expert. For each item, find the MOST SIMILAR candidate to the PP microcategory — even if not an exact match.
-
-ITEMS:
-${items}
-
-RULES:
-- Always pick the closest semantic match from the candidates
-- Consider synonyms, partial matches, and fashion terminology equivalences
-- Only pick from the provided candidates list for that item
-- Always use the correct gender-specific description based on PP_GENDER:
-  * M → MUST use Men's/male-oriented descriptions ONLY
-  * W → MUST use Women's/female-oriented descriptions ONLY
-  * U → Unisex/gender-neutral first; if none, Men's; NEVER Women's for Unisex
-  * A/B → Boys' descriptions; if none, general Kids/Children's
-  * C → Children's/Kids'; can use Boys' or Girls' if no generic option
-  * D → Baby; if none, general Kids/Children's
-  * E/G → Girls' descriptions; if none, general Kids/Children's
-- Only use "NO_MATCH" if truly nothing is even remotely related
-
-Return ONLY a JSON array with no markdown, no explanation:
-[{"item":1,"code":"9028","label":"Swimsuit","reasoning":"closest match to microcategory"}]`;
-    const res=await callAPI(prompt);
-    if(!Array.isArray(res))throw new Error('API did not return an array');
-    return res.map((item,idx)=>{
-      const o=batch[idx];if(!o)return null;
-      const vl=(o.valuesList?.toString().trim()||'');
-      return{categoryCode:o.categoryCode,categoryFullLabel:o.categoryFullLabel,valuesList:o.valuesList,PP_MICROCATEGORY_CODE:o.PP_MICROCATEGORY_CODE,PP_MICROCATEGORY:o.PP_MICROCATEGORY,description:item.code,descriptionLabel:item.label,reasoning:item.reasoning,_candidates:bsByVL[vl]||[]};
-    }).filter(Boolean);
+    const items=batch.map((r,i)=>{const vl=(r.valuesList?.toString().trim()||'');const cands=(bsByVL[vl]||[]).map(b=>`${b.code}|${b.label}`).join(', ');return`${i+1}. PP_MICROCATEGORY:"${r.PP_MICROCATEGORY}", valuesList:${vl}, candidates:[${cands||'NONE'}]`;}).join('\n');
+    const prompt=`Fashion description mapping. Find closest match from candidates.\nITEMS:\n${items}\nRULES: pick closest semantic match, correct gender (M→men, W→women, U→unisex/men never women). "NO_MATCH" only if truly nothing fits.\nReturn ONLY JSON array: [{"item":1,"code":"...","label":"...","reasoning":"..."}]`;
+    const res=await callAPI(prompt);if(!Array.isArray(res))throw new Error('not array');
+    return res.map((item,idx)=>{const o=batch[idx];if(!o)return null;const vl=(o.valuesList?.toString().trim()||'');return{categoryCode:o.categoryCode,categoryFullLabel:o.categoryFullLabel,valuesList:o.valuesList,PP_MICROCATEGORY_CODE:o.PP_MICROCATEGORY_CODE,PP_MICROCATEGORY:o.PP_MICROCATEGORY,description:item.code,descriptionLabel:item.label,reasoning:item.reasoning,_candidates:bsByVL[vl]||[]};}).filter(Boolean);
   });
 }
 function renderDescriptionResults(){
@@ -798,15 +771,15 @@ function renderDescriptionResults(){
   S.desc_results.forEach((row,idx)=>{
     const opts=(row._candidates||[]).map(c=>`<option value="${c.code}" ${c.code==row.description?'selected':''}>${c.code} — ${c.label}</option>`).join('');
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td class="bs-code">${row.categoryCode}</td><td style="font-size:11px;color:#aaa">${row.categoryFullLabel}</td>
-      <td style="color:#c8a96e;font-weight:600">${row.valuesList}</td><td>${row.PP_MICROCATEGORY_CODE}</td>
-      <td class="pp-cat">${row.PP_MICROCATEGORY}</td>
-      <td><select onchange="updateDesc(${idx},this.value)">${opts}</select><div class="reasoning">${row.reasoning||''}</div></td>
-      <td class="bs-code" id="desc_lbl_${idx}">${row.descriptionLabel}</td>`;
+    tr.innerHTML=`<td><code>${row.categoryCode}</code></td><td style="font-size:.78rem;color:#6b7280">${row.categoryFullLabel}</td>
+      <td style="color:var(--accent);font-weight:600">${row.valuesList}</td><td>${row.PP_MICROCATEGORY_CODE}</td>
+      <td style="color:var(--accent);font-weight:600">${row.PP_MICROCATEGORY}</td>
+      <td><select onchange="updateDesc(${idx},this.value)">${opts}</select><div class="reasoning-note">${row.reasoning||''}</div></td>
+      <td><code id="desc_lbl_${idx}">${row.descriptionLabel}</code></td>`;
     tbody.appendChild(tr);
   });
   document.getElementById('desc_mappedCount').textContent=`${S.desc_results.length} rows mapped`;
-  document.getElementById('desc_step3').style.cssText='opacity:1;pointer-events:auto;';
+  enableStep('desc_step3');
 }
 function updateDesc(idx,code){const c=(S.desc_results[idx]._candidates||[]).find(x=>x.code==code);if(c){S.desc_results[idx].description=c.code;S.desc_results[idx].descriptionLabel=c.label;document.getElementById(`desc_lbl_${idx}`).textContent=c.label;}}
 function exportDescription(){doExport(S.desc_results.map(r=>({categoryCode:r.categoryCode,categoryFullLabel:r.categoryFullLabel,valuesList:r.valuesList,PP_MICROCATEGORY_CODE:r.PP_MICROCATEGORY_CODE,PP_MICROCATEGORY:r.PP_MICROCATEGORY,description:r.description})),'Description Mapping','BS_DescriptionMapping');}
@@ -815,52 +788,28 @@ async function runShopMapping(){
   const bsList=S.shop_bs.map(r=>`${r.code}|${r.label}`).join('\n');
   await runMapping('shop',async(batch)=>{
     const items=batch.map((r,i)=>`${i+1}. MicroCategory:"${r.PP_MICROCATEGORY}", Gender:${r.PP_GENDER}`).join('\n');
-    const prompt=`You are a fashion shop category mapping expert. Map each PP product to Best Secret shop category codes.
-BS SHOP CATEGORIES (code|label):
-${bsList}
-MAP THESE ITEMS:
-${items}
-RULES:
-- M: pick best men_ code → cat1, leave cat2 empty
-- W: pick best women_ code → cat1, leave cat2 empty
-- U: pick best men_ code → cat1, best women_ code → cat2
-- Only use codes from the provided list
-- M → MUST use men_ prefixed codes ONLY
-- W → MUST use women_ prefixed codes ONLY
-- U → men_ code for cat1; NEVER women_ for Unisex
-- A/B → boys' codes; if none, general kids/children's
-- C → children's/kids'; can use boys' or girls' if no generic option
-- D → baby; if none, general kids/children's
-- E/G → girls' codes; if none, general kids/children's
-- If no match use "NO_MATCH"
-- PHILIPP PLEIN: NEVER use sport-specific shop categories
-Return ONLY a JSON array with no markdown, no explanation:
-[{"item":1,"cat1":"men_bekleidung_strick_vneck","cat2":"","reasoning":"Men knitwear"}]`;
-    const res=await callAPI(prompt);
-    if(!Array.isArray(res))throw new Error('API did not return an array');
-    return res.map((item,idx)=>{
-      const o=batch[idx];if(!o)return null;
-      return{PP_MICROCATEGORY_CODE:o.PP_MICROCATEGORY_CODE,PP_MICROCATEGORY:o.PP_MICROCATEGORY,PP_GENDER:o.PP_GENDER,BS_SHOP_CATEGORY_1:item.cat1||'',BS_SHOP_CATEGORY_2:item.cat2||'',reasoning:item.reasoning};
-    }).filter(Boolean);
+    const prompt=`Fashion shop category mapping.\nBS SHOP CATEGORIES:\n${bsList}\nMAP:\n${items}\nRULES: M→men_ cat1, W→women_ cat1, U→men_ cat1 + women_ cat2. PHILIPP PLEIN never sport-specific.\nReturn ONLY JSON array: [{"item":1,"cat1":"...","cat2":"","reasoning":"..."}]`;
+    const res=await callAPI(prompt);if(!Array.isArray(res))throw new Error('not array');
+    return res.map((item,idx)=>{const o=batch[idx];if(!o)return null;return{PP_MICROCATEGORY_CODE:o.PP_MICROCATEGORY_CODE,PP_MICROCATEGORY:o.PP_MICROCATEGORY,PP_GENDER:o.PP_GENDER,BS_SHOP_CATEGORY_1:item.cat1||'',BS_SHOP_CATEGORY_2:item.cat2||'',reasoning:item.reasoning};}).filter(Boolean);
   });
 }
 function renderShopResults(){
   const tbody=document.getElementById('shop_resultsBody');tbody.innerHTML='';
   const allOpts=`<option value="">— none —</option>`+S.shop_bs.map(r=>`<option value="${r.code}">${r.code} | ${r.label}</option>`).join('');
   S.shop_results.forEach((row,idx)=>{
-    const gc=row.PP_GENDER==='M'?'badge-M':row.PP_GENDER==='W'?'badge-W':'badge-U';
+    const gc=row.PP_GENDER==='M'?'gb-M':row.PP_GENDER==='W'?'gb-W':'gb-U';
     const s1=allOpts.replace(`value="${row.BS_SHOP_CATEGORY_1}"`,`value="${row.BS_SHOP_CATEGORY_1}" selected`);
     const s2=allOpts.replace(`value="${row.BS_SHOP_CATEGORY_2}"`,`value="${row.BS_SHOP_CATEGORY_2}" selected`);
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${row.PP_MICROCATEGORY_CODE}</td><td class="pp-cat">${row.PP_MICROCATEGORY}</td>
-      <td><span class="badge ${gc}">${row.PP_GENDER}</span></td>
+    tr.innerHTML=`<td>${row.PP_MICROCATEGORY_CODE}</td><td style="color:var(--accent);font-weight:600">${row.PP_MICROCATEGORY}</td>
+      <td><span class="gender-badge ${gc}">${row.PP_GENDER}</span></td>
       <td><select onchange="S.shop_results[${idx}].BS_SHOP_CATEGORY_1=this.value">${s1}</select></td>
       <td><select onchange="S.shop_results[${idx}].BS_SHOP_CATEGORY_2=this.value">${s2}</select></td>
-      <td class="reasoning">${row.reasoning||''}</td>`;
+      <td class="reasoning-note">${row.reasoning||''}</td>`;
     tbody.appendChild(tr);
   });
   document.getElementById('shop_mappedCount').textContent=`${S.shop_results.length} rows mapped`;
-  document.getElementById('shop_step3').style.cssText='opacity:1;pointer-events:auto;';
+  enableStep('shop_step3');
 }
 function exportShop(){doExport(S.shop_results.map(r=>({PP_MICROCATEGORY_CODE:r.PP_MICROCATEGORY_CODE,PP_MICROCATEGORY:r.PP_MICROCATEGORY,PP_GENDER:r.PP_GENDER,BS_SHOP_CATEGORY_1:r.BS_SHOP_CATEGORY_1,BS_SHOP_CATEGORY_2:r.BS_SHOP_CATEGORY_2})),'Shop Category Mapping','BS_ShopCategoryMapping');}
 
@@ -868,23 +817,9 @@ async function runMaterialMapping(){
   const bsList=S.mat_bs.map(r=>`${r.code}|${r.label}`).join('\n');
   await runMapping('mat',async(batch)=>{
     const items=batch.map((r,i)=>`${i+1}. PP_MATERIAL:"${r.PP_MATERIAL}"`).join('\n');
-    const prompt=`You are a fashion materials mapping expert. Match each Philipp Plein material to the closest Best Secret material.
-BS MATERIALS (code|label):
-${bsList}
-MAP THESE ITEMS:
-${items}
-RULES:
-- Find the closest semantic match (e.g. "PIG SPLIT LEATHER" → Leather, "ACETATE" → Acetate)
-- Only use codes from the provided BS list
-- If truly no match exists use "NO_MATCH"
-Return ONLY a JSON array with no markdown, no explanation:
-[{"item":1,"code":"6230","label":"Leather","reasoning":"pig split leather is a type of leather"}]`;
-    const res=await callAPI(prompt);
-    if(!Array.isArray(res))throw new Error('API did not return an array');
-    return res.map((item,idx)=>{
-      const o=batch[idx];if(!o)return null;
-      return{PP_MATERIAL:o.PP_MATERIAL,code:item.code,bsLabel:item.label,reasoning:item.reasoning};
-    }).filter(Boolean);
+    const prompt=`Fashion materials mapping. Match each PP material to closest BS material.\nBS MATERIALS:\n${bsList}\nITEMS:\n${items}\nReturn ONLY JSON array: [{"item":1,"code":"...","label":"...","reasoning":"..."}]`;
+    const res=await callAPI(prompt);if(!Array.isArray(res))throw new Error('not array');
+    return res.map((item,idx)=>{const o=batch[idx];if(!o)return null;return{PP_MATERIAL:o.PP_MATERIAL,code:item.code,bsLabel:item.label,reasoning:item.reasoning};}).filter(Boolean);
   });
 }
 function renderMaterialResults(){
@@ -893,22 +828,22 @@ function renderMaterialResults(){
   S.mat_results.forEach((row,idx)=>{
     const selOpts=allOpts.replace(`value="${row.code}"`,`value="${row.code}" selected`);
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td class="pp-cat">${row.PP_MATERIAL}</td>
+    tr.innerHTML=`<td style="color:var(--accent);font-weight:600">${row.PP_MATERIAL}</td>
       <td><select onchange="updateMat(${idx},this.value)"><option value="">— select —</option>${selOpts}</select></td>
-      <td class="bs-code" id="mat_lbl_${idx}">${row.bsLabel||''}</td>
-      <td class="reasoning">${row.reasoning||''}</td>`;
+      <td><code id="mat_lbl_${idx}">${row.bsLabel||''}</code></td>
+      <td class="reasoning-note">${row.reasoning||''}</td>`;
     tbody.appendChild(tr);
   });
   document.getElementById('mat_mappedCount').textContent=`${S.mat_results.length} rows mapped`;
-  document.getElementById('mat_step3').style.cssText='opacity:1;pointer-events:auto;';
+  enableStep('mat_step3');
 }
 function updateMat(idx,code){const bs=S.mat_bs.find(r=>r.code==code);if(bs){S.mat_results[idx].code=bs.code;S.mat_results[idx].bsLabel=bs.label;document.getElementById(`mat_lbl_${idx}`).textContent=bs.label;}}
 function exportMaterial(){doExport(S.mat_results.map(r=>({PP_MATERIAL:r.PP_MATERIAL,code:r.code})),'Material Mapping','BS_MaterialMapping');}
 
 async function runSizeMapping(){
   document.getElementById('size_runBtn').disabled=true;
-  document.getElementById('size_progressWrap').classList.remove('hidden');
-  document.getElementById('size_step3').style.cssText='opacity:.4;pointer-events:none;';
+  document.getElementById('size_progressWrap').style.display='';
+  document.getElementById('size_step3').classList.add('disabled');
   S.size_mapped=[];S.size_unmapped=[];
   const bsByVL={};
   S.size_bs.forEach(r=>{const v=r.valuesList?.toString().trim()||'';if(!bsByVL[v])bsByVL[v]=[];bsByVL[v].push(r);});
@@ -917,53 +852,30 @@ async function runSizeMapping(){
     const batch=empty.slice(i,i+batchSize);
     document.getElementById('size_progressBar').style.width=Math.round((i/total)*100)+'%';
     document.getElementById('size_progressLabel').textContent=`Processing ${i+1}–${Math.min(i+batchSize,total)} of ${total}...`;
-    const items=batch.map((r,idx)=>{
-      const vl=r.valuesList?.toString().trim()||'';
-      const cands=(bsByVL[vl]||[]).map(b=>{const lbl=b.label||'';const di=lbl.lastIndexOf(' - ');return`${b.code}|${di>=0?lbl.slice(di+3).trim():lbl.trim()}`;}).join(', ');
-      return`${idx+1}. PP_SIZE:"${r.PP_SIZE}", valuesList:${vl}, candidates:[${cands||'NONE'}]`;
-    }).join('\n');
-    const prompt=`You are a size mapping expert. Match each PP_SIZE to the correct BS size code from the candidates.
-Candidates are shown as code|sizeValue (the actual size extracted from the BS label after the last " - ").
-EQUIVALENCES:
-- 0, ONE SIZE, ONESIZE, OS, ONE-SIZE → all mean one size
-- 3XL, XXXL → same; 4XL, XXXXL → same; 2XL, XXL → same; 5XL, XXXXXL → same
-- XL/L and L/XL → same (order swap OK)
-- Numeric: 36 and 36.0 → same. But 36 ≠ 37
-STRICT: NEVER map different sizes (3XL≠4XL, M≠L, 54≠56). Only use provided codes. No match→"NO_MATCH".
-ITEMS:
-${items}
-Return ONLY a JSON array with no markdown, no explanation:
-[{"item":1,"code":"Miscellaneous_Sizes-XXXL","matched":true,"reasoning":"3XL equals XXXL"}]`;
+    const items=batch.map((r,idx)=>{const vl=r.valuesList?.toString().trim()||'';const cands=(bsByVL[vl]||[]).map(b=>{const lbl=b.label||'';const di=lbl.lastIndexOf(' - ');return`${b.code}|${di>=0?lbl.slice(di+3).trim():lbl.trim()}`;}).join(', ');return`${idx+1}. PP_SIZE:"${r.PP_SIZE}", valuesList:${vl}, candidates:[${cands||'NONE'}]`;}).join('\n');
+    const prompt=`Size mapping. Match each PP_SIZE to correct BS code.\nEQUIVALENCES: ONE SIZE=OS=ONESIZE; 3XL=XXXL; 2XL=XXL; 4XL=XXXXL; 5XL=XXXXXL; numeric 36=36.0.\nNEVER map different sizes.\nITEMS:\n${items}\nReturn ONLY JSON array: [{"item":1,"code":"...","matched":true,"reasoning":"..."}]`;
     try{
-      const res=await callAPI(prompt);
-      if(!Array.isArray(res))throw new Error('API did not return an array');
-      res.forEach((item,idx)=>{
-        const o=batch[idx];if(!o)return;
-        const vl=o.valuesList?.toString().trim()||'';
-        const bsEntry=(bsByVL[vl]||[]).find(b=>b.code===item.code);
-        const row={PP_MICROCATEGORY_CODE:o.PP_MICROCATEGORY_CODE,PP_MICROCATEGORY:o.PP_MICROCATEGORY,PP_GENDER:o.PP_GENDER,PP_SIZE_TYPE:o.PP_SIZE_TYPE,PP_SIZE:o.PP_SIZE,sizeRunAndSize:item.matched&&item.code!=='NO_MATCH'?item.code:'',categoryCode:o.categoryCode,valuesList:o.valuesList,sizeRunAndSizeLabel:item.matched&&item.code!=='NO_MATCH'?(bsEntry?.label||item.code):'',_reasoning:item.reasoning};
-        if(item.matched&&item.code&&item.code!=='NO_MATCH')S.size_mapped.push(row);
-        else S.size_unmapped.push(row);
-      });
+      const res=await callAPI(prompt);if(!Array.isArray(res))throw new Error('not array');
+      res.forEach((item,idx)=>{const o=batch[idx];if(!o)return;const vl=o.valuesList?.toString().trim()||'';const bsEntry=(bsByVL[vl]||[]).find(b=>b.code===item.code);const row={PP_MICROCATEGORY_CODE:o.PP_MICROCATEGORY_CODE,PP_MICROCATEGORY:o.PP_MICROCATEGORY,PP_GENDER:o.PP_GENDER,PP_SIZE_TYPE:o.PP_SIZE_TYPE,PP_SIZE:o.PP_SIZE,sizeRunAndSize:item.matched&&item.code!=='NO_MATCH'?item.code:'',categoryCode:o.categoryCode,valuesList:o.valuesList,sizeRunAndSizeLabel:item.matched&&item.code!=='NO_MATCH'?(bsEntry?.label||item.code):'',_reasoning:item.reasoning};if(item.matched&&item.code&&item.code!=='NO_MATCH')S.size_mapped.push(row);else S.size_unmapped.push(row);});
     }catch(err){batch.forEach(o=>S.size_unmapped.push({PP_MICROCATEGORY_CODE:o.PP_MICROCATEGORY_CODE,PP_MICROCATEGORY:o.PP_MICROCATEGORY,PP_GENDER:o.PP_GENDER,PP_SIZE_TYPE:o.PP_SIZE_TYPE,PP_SIZE:o.PP_SIZE,sizeRunAndSize:'',categoryCode:o.categoryCode,valuesList:o.valuesList,sizeRunAndSizeLabel:'',_reasoning:'Error:'+err.message}));}
   }
   document.getElementById('size_progressBar').style.width='100%';
-  document.getElementById('size_progressLabel').textContent=`✓ Done! ${S.size_mapped.length} mapped, ${S.size_unmapped.length} unmapped.`;
+  document.getElementById('size_progressLabel').textContent=`✓ Done — ${S.size_mapped.length} mapped, ${S.size_unmapped.length} unmapped.`;
   renderSizeResults();
 }
 function renderSizeResults(){
-  const cols=r=>`<td>${r.PP_MICROCATEGORY_CODE}</td><td class="pp-cat">${r.PP_MICROCATEGORY}</td>
-    <td><span class="badge badge-${r.PP_GENDER||'U'}">${r.PP_GENDER}</span></td>
-    <td>${r.PP_SIZE_TYPE}</td><td style="color:#c8a96e;font-weight:600">${r.PP_SIZE}</td>
-    <td class="bs-code">${r.sizeRunAndSize}</td><td class="bs-code">${r.categoryCode}</td>
+  const cols=r=>`<td>${r.PP_MICROCATEGORY_CODE}</td><td style="color:var(--accent);font-weight:600">${r.PP_MICROCATEGORY}</td>
+    <td><span class="gender-badge gb-${r.PP_GENDER||'U'}">${r.PP_GENDER}</span></td>
+    <td>${r.PP_SIZE_TYPE}</td><td style="font-weight:600">${r.PP_SIZE}</td>
+    <td><code>${r.sizeRunAndSize}</code></td><td><code>${r.categoryCode}</code></td>
     <td>${r.valuesList}</td><td>${r.sizeRunAndSizeLabel}</td>`;
   const mb=document.getElementById('size_mappedBody');mb.innerHTML='';
   S.size_mapped.forEach(r=>{const tr=document.createElement('tr');tr.innerHTML=cols(r);mb.appendChild(tr);});
   const ub=document.getElementById('size_unmappedBody');ub.innerHTML='';
-  S.size_unmapped.forEach(r=>{const tr=document.createElement('tr');tr.style.background='#1a0d0d';tr.innerHTML=cols(r);ub.appendChild(tr);});
+  S.size_unmapped.forEach(r=>{const tr=document.createElement('tr');tr.classList.add('table-danger');tr.innerHTML=cols(r);ub.appendChild(tr);});
   document.getElementById('size_mappedCount').textContent=`${S.size_mapped.length} mapped`;
   document.getElementById('size_unmappedCount').textContent=`${S.size_unmapped.length} unmapped`;
-  document.getElementById('size_step3').style.cssText='opacity:1;pointer-events:auto;';
+  enableStep('size_step3');
 }
 function exportSize(type){
   const rows=type==='mapped'?S.size_mapped:S.size_unmapped;
@@ -975,22 +887,17 @@ async function callAPI(prompt){
   const res=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:2000,messages:[{role:"user",content:prompt}]})});
   const data=await res.json();
-  if(data.error)throw new Error(`API error: ${data.error.type} — ${data.error.message}`);
-  if(!data.content||!Array.isArray(data.content))throw new Error(`Unexpected API response: ${JSON.stringify(data).slice(0,150)}`);
+  if(data.error)throw new Error(`${data.error.type}: ${data.error.message}`);
+  if(!data.content||!Array.isArray(data.content))throw new Error(`Unexpected response`);
   const text=data.content.map(c=>c.text||'').join('');
   const clean=text.replace(/```json|```/g,'').trim();
-  try{return JSON.parse(clean);}
-  catch(e){
-    const arrMatch=clean.match(/\[[\s\S]*\]/);
-    if(arrMatch)return JSON.parse(arrMatch[0]);
-    throw new Error('Could not parse response: '+clean.slice(0,100));
-  }
+  try{return JSON.parse(clean);}catch(e){const m=clean.match(/\[[\s\S]*\]/);if(m)return JSON.parse(m[0]);throw new Error('Parse failed: '+clean.slice(0,100));}
 }
 
 async function runMapping(prefix,processBatch){
   document.getElementById(prefix+'_runBtn').disabled=true;
-  document.getElementById(prefix+'_progressWrap').classList.remove('hidden');
-  document.getElementById(prefix+'_step3').style.cssText='opacity:.4;pointer-events:none;';
+  document.getElementById(prefix+'_progressWrap').style.display='';
+  document.getElementById(prefix+'_step3').classList.add('disabled');
   S[prefix+'_results']=[];
   const empty=S[prefix+'_empty'],total=empty.length,batchSize=10;
   for(let i=0;i<total;i+=batchSize){
@@ -1001,7 +908,7 @@ async function runMapping(prefix,processBatch){
     catch(err){batch.forEach(o=>S[prefix+'_results'].push({...o,_error:err.message}));}
   }
   document.getElementById(prefix+'_progressBar').style.width='100%';
-  document.getElementById(prefix+'_progressLabel').textContent=`✓ Done! ${S[prefix+'_results'].length} rows mapped.`;
+  document.getElementById(prefix+'_progressLabel').textContent=`✓ Done — ${S[prefix+'_results'].length} rows mapped.`;
   if(prefix==='cat')renderCategoryResults();
   else if(prefix==='desc')renderDescriptionResults();
   else if(prefix==='shop')renderShopResults();
@@ -1015,7 +922,4 @@ function doExport(data,sheetName,filename){
   XLSX.writeFile(wb,`${filename}_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 </script>
-</div><!-- main-content -->
-</div><!-- app-wrapper -->
-</body>
-</html>
+{% endblock %}
