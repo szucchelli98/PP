@@ -37,38 +37,11 @@
           <i class="fas fa-tags"></i> Promo Selection
         </a>
       </li>
-<li class="nav-group {{ 'open' if request.blueprint == 'best_secret' else '' }}">
-        <a href="#" class="nav-group-toggle">
-          <i class="fas fa-layer-group"></i> Best Secret
-          <i class="fas fa-chevron-down nav-arrow"></i>
+      <li>
+        <a href="{{ url_for('best_secret.index') }}"
+           class="{{ 'active' if request.blueprint == 'best_secret' else '' }}">
+          <i class="fas fa-layer-group"></i> Best Secret Mapping
         </a>
-        <ul class="nav-sub">
-          {% set tool_names = ['category','description','shop_category','materials','size','closure'] %}
-          {% set tool_labels = {
-            'category': 'Category',
-            'description': 'Description',
-            'shop_category': 'Shop Category',
-            'materials': 'Materials',
-            'size': 'Size',
-            'closure': 'Closure'
-          } %}
-          {% set tool_icons = {
-            'category': 'fas fa-tags',
-            'description': 'fas fa-align-left',
-            'shop_category': 'fas fa-store',
-            'materials': 'fas fa-layer-group',
-            'size': 'fas fa-ruler',
-            'closure': 'fas fa-lock'
-          } %}
-          {% for tn in tool_names %}
-          <li>
-            <a href="{{ url_for('best_secret.mapping_tool', tool_name=tn) }}"
-               class="{{ 'active' if request.view_args.get('tool_name') == tn else '' }}">
-              <i class="{{ tool_icons[tn] }}"></i> {{ tool_labels[tn] }}
-            </a>
-          </li>
-          {% endfor %}
-        </ul>
       </li>
     </ul>
   </nav>
